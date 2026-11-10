@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A small shelf holding three game cases. Content stays inside the 66dp adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#66C0F4"
+        android:pathData="M33,40h10a1.5,1.5 0,0 1,1.5 1.5v29h-13v-29a1.5,1.5 0,0 1,1.5 -1.5z" />
+    <path
+        android:fillColor="#A4D007"
+        android:pathData="M48.5,34h10a1.5,1.5 0,0 1,1.5 1.5v35h-13v-35a1.5,1.5 0,0 1,1.5 -1.5z" />
+    <path
+        android:fillColor="#C7D5E0"
+        android:pathData="M63,47.2l9.6,-2.8a1.5,1.5 0,0 1,1.86 1.02l7.1,24.1h-13.5l-6.1,-20.5a1.5,1.5 0,0 1,1.04 -1.82z" />
+    <path
+        android:fillColor="#C7D5E0"
+        android:pathData="M28,70.5h52a1.5,1.5 0,0 1,1.5 1.5v3a1.5,1.5 0,0 1,-1.5 1.5h-52a1.5,1.5 0,0 1,-1.5 -1.5v-3a1.5,1.5 0,0 1,1.5 -1.5z" />
+</vector>
