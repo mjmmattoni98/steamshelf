@@ -58,9 +58,12 @@ whatever `java` on your PATH is.
 LIVE_API_TESTS=1 ./gradlew testDebugUnitTest --tests '*LiveApiTest*'   # checks Steam/ProtonDB/HLTB still work
 ```
 
-Install on a phone with `adb install app/build/outputs/apk/debug/app-debug.apk`, or copy the APK
-over and open it. `assembleRelease` produces a minified (~2 MB) unsigned APK; sign it with your own
-keystore if you want a release build.
+For a phone, build the release APK: `./gradlew assembleRelease` gives
+`app/build/outputs/apk/release/app-release.apk` (~2 MB, minified, noticeably smoother than the debug
+build). It's signed with this machine's debug key (`~/.android/debug.keystore`), so new builds install
+over old ones and keep your data; switch to a dedicated keystore before publishing it anywhere.
+Install it with `adb install -r app/build/outputs/apk/release/app-release.apk`, or copy the file to the
+phone and open it (Android asks once to allow installs from that app).
 
 ## How it works
 

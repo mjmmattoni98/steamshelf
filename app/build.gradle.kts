@@ -20,6 +20,9 @@ android {
 
     buildTypes {
         release {
+            // For installing on your own phone: sign with this machine's debug key (~/.android/debug.keystore),
+            // so the APK installs and updates over the debug build. Use a dedicated keystore before publishing.
+            signingConfig = signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
