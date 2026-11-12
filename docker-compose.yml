@@ -1,0 +1,35 @@
+# SteamShelf web app. On the Raspberry Pi, from a clone of this repository:
+#
+#   docker compose up -d --build        # build and start (a few minutes the first time)
+#   ./deploy/tailscale-serve.sh         # once: publish it on your tailnet with HTTPS
+#
+# Updates: git pull && docker compose up -d --build
+services:
+  steamshelf:
+    build:
+      context: .
+      args:
+        VERSION: ${STEAMSHELF_VERSION:-dev}
+    image: steamshelf-server
+    container_name: steamshelf
+    restart: unless-stopped
+    ports:
+      # Only reachable from the Pi itself; `tailscale serve` passes tailnet HTTPS traffic to it.
+      # Change the first number (or set STEAMSHELF_HOST_PORT in a .env file) if 8080 is taken.
+      - "127.0.0.1:${STEAMSHELF_HOST_PORT:-8080}:8080"
+    volumes:
+      # API key, settings and the library cache. Survives rebuilds; `docker compose down -v` deletes it.
+      - steamshelf-data:/data
+    environment:
+      TZ: ${TZ:-UTC}
+      # Only needed if the address can't be worked out from requests (e.g. another proxy in front):
+      # STEAMSHELF_PUBLIC_URL: https://raspberrypi.your-tailnet.ts.net
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "3"
+
+volumes:
+  steamshelf-data:

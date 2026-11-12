@@ -71,11 +71,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    testOptions {
-        // OkHttp probes android.util.Log on the JVM; let unit tests get default values instead of crashing.
-        unitTests.isReturnDefaultValues = true
-    }
-
     buildFeatures {
         compose = true
         buildConfig = true
@@ -83,6 +78,8 @@ android {
 }
 
 dependencies {
+    // Data and model code (API clients, sync, filters), shared with the web server.
+    implementation(project(":core"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
@@ -105,8 +102,4 @@ dependencies {
     implementation(libs.coil.network.okhttp)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
-
-    testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.okhttp.mockwebserver)
 }

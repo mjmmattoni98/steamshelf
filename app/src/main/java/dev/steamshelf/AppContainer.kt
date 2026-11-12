@@ -1,6 +1,7 @@
 package dev.steamshelf
 
 import android.content.Context
+import androidx.datastore.preferences.preferencesDataStore
 import dev.steamshelf.data.CacheStore
 import dev.steamshelf.data.LibraryRepository
 import dev.steamshelf.data.SettingsStore
@@ -16,6 +17,8 @@ import okhttp3.Cache
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
+
+private val Context.settingsDataStore by preferencesDataStore(name = "settings")
 
 /** Hand-rolled dependency graph; the app is small enough not to need a DI framework. */
 class AppContainer(context: Context) {
@@ -33,7 +36,7 @@ class AppContainer(context: Context) {
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    val settings = SettingsStore(context, json)
+    val settings = SettingsStore(context.applicationContext.settingsDataStore, json)
     val steamApi = SteamApi(httpClient, json)
     private val protonDbApi = ProtonDbApi(httpClient, json)
     private val hltbApi = HltbApi(httpClient, json)

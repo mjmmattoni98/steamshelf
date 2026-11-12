@@ -72,6 +72,8 @@ class LibraryRepository(
     private val clock: () -> Long = System::currentTimeMillis,
     launcher: SyncLauncher? = null,
     private val storeLanguage: () -> String = { SteamLanguage.forLocale(Locale.getDefault()) },
+    /** Two-letter country the store data is requested for (availability differs by region). */
+    private val storeCountry: () -> String = { Locale.getDefault().country.takeIf { it.length == 2 } ?: "US" },
 ) {
     private val games = MutableStateFlow<List<OwnedGame>>(emptyList())
     private val store = MutableStateFlow<Map<Int, StoreInfo>>(emptyMap())
@@ -603,7 +605,7 @@ class LibraryRepository(
         }
     }
 
-    private fun country(): String = Locale.getDefault().country.takeIf { it.length == 2 } ?: "US"
+    private fun country(): String = storeCountry()
 
     private fun HltbGame.toInfo(appId: Int, now: Long, similarity: Double, manual: Boolean) = HltbInfo(
         appId = appId,

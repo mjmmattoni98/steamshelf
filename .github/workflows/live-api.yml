@@ -23,19 +23,16 @@ jobs:
           java-version: '17'
           cache: gradle
 
-      - uses: android-actions/setup-android@v4
-        with:
-          packages: 'platform-tools platforms;android-37.0'
-
+      # The API clients live in :core, a plain JVM module, so no Android SDK is needed.
       - name: Live API tests
         env:
           LIVE_API_TESTS: '1'
-        run: ./gradlew --no-daemon testDebugUnitTest --tests '*LiveApiTest*'
+        run: ./gradlew --no-daemon -Psteamshelf.serverOnly=true :core:test --tests '*LiveApiTest*'
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: live-api-results
-          path: app/build/test-results/
+          path: core/build/test-results/
           if-no-files-found: ignore

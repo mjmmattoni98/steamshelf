@@ -4,8 +4,10 @@
 /local.properties
 /.idea/
 .DS_Store
-/build/
-/app/build/
+build/
+# The web server's data directory when it runs outside Docker (API key, cache).
+/data/
+/server/data/
 /captures/
 .externalNativeBuild/
 .cxx/

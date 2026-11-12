@@ -8,39 +8,56 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 
 /**
- * "Sign in through Steam" (OpenID 2.0). The login page runs in a WebView; Steam redirects to [RETURN_TO],
- * which never resolves (.invalid is a reserved TLD), so the WebView intercepts it and we verify the
- * assertion directly with Steam before trusting the SteamID it carries.
+ * "Sign in through Steam" (OpenID 2.0). Steam's login page sends the browser back to a return URL with a
+ * signed assertion, which we verify directly with Steam before trusting the SteamID it carries.
+ *
+ * The app runs the login page in a WebView and returns to [RETURN_TO], which never resolves (.invalid is a
+ * reserved TLD), so the WebView intercepts it. The web server passes its own callback URL instead.
  */
 object SteamOpenId {
     const val RETURN_TO = "https://steamshelf.invalid/openid/callback"
     private const val REALM = "https://steamshelf.invalid/"
-    private const val ENDPOINT = "https://steamcommunity.com/openid/login"
+    const val ENDPOINT = "https://steamcommunity.com/openid/login"
     private const val NS = "http://specs.openid.net/auth/2.0"
     private const val IDENTIFIER_SELECT = "http://specs.openid.net/auth/2.0/identifier_select"
     private val claimedIdPattern = Regex("^https://steamcommunity\\.com/openid/id/(\\d{17})$")
 
-    val loginUrl: String = ENDPOINT.toHttpUrl().newBuilder()
+    /**
+     * Fields Steam's signature has to cover. check_authentication only checks the fields listed in
+     * openid.signed, so an assertion that leaves one of these out could carry a forged SteamID.
+     */
+    private val requiredSignedFields = setOf("op_endpoint", "claimed_id", "identity", "return_to", "response_nonce")
+
+    /** The app's login page, returning to [RETURN_TO]. */
+    val loginUrl: String = loginUrl(RETURN_TO, REALM)
+
+    /** Steam's login page, sending the browser back to [returnTo]. [realm] is the site Steam names on that page. */
+    fun loginUrl(returnTo: String, realm: String): String = ENDPOINT.toHttpUrl().newBuilder()
         .addQueryParameter("openid.ns", NS)
         .addQueryParameter("openid.mode", "checkid_setup")
-        .addQueryParameter("openid.return_to", RETURN_TO)
-        .addQueryParameter("openid.realm", REALM)
+        .addQueryParameter("openid.return_to", returnTo)
+        .addQueryParameter("openid.realm", realm)
         .addQueryParameter("openid.identity", IDENTIFIER_SELECT)
         .addQueryParameter("openid.claimed_id", IDENTIFIER_SELECT)
         .build()
         .toString()
 
-    fun isCallback(url: String?): Boolean = url != null && url.startsWith(RETURN_TO)
+    fun isCallback(url: String?, returnTo: String = RETURN_TO): Boolean = url != null && url.startsWith(returnTo)
 
     /** Verifies the callback with Steam (check_authentication) and returns the SteamID64. */
-    suspend fun verify(client: OkHttpClient, callbackUrl: String): String {
+    suspend fun verify(client: OkHttpClient, callbackUrl: String, returnTo: String = RETURN_TO): String {
         val url = callbackUrl.toHttpUrlOrNull() ?: throw SteamApiException(SteamApiException.Reason.SIGN_IN_INVALID, "Invalid sign-in response.")
         val params = url.queryParameterNames
             .filter { it.startsWith("openid.") }
             .associateWith { url.queryParameter(it).orEmpty() }
 
         if (params["openid.mode"] == "cancel") throw SteamApiException(SteamApiException.Reason.SIGN_IN_CANCELLED, "Sign-in was cancelled.")
-        if (params["openid.op_endpoint"] != ENDPOINT || params["openid.return_to"]?.startsWith(RETURN_TO) != true) {
+        val signed = params["openid.signed"].orEmpty().split(',').toSet()
+        if (params["openid.op_endpoint"] != ENDPOINT ||
+            params["openid.return_to"]?.startsWith(returnTo) != true ||
+            !signed.containsAll(requiredSignedFields) ||
+            params["openid.identity"] != params["openid.claimed_id"]
+        ) {
             throw SteamApiException(SteamApiException.Reason.SIGN_IN_UNEXPECTED, "Unexpected sign-in response.")
         }
         val steamId = claimedIdPattern.find(params["openid.claimed_id"].orEmpty())?.groupValues?.get(1)

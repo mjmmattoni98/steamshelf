@@ -21,4 +21,9 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "SteamShelf"
-include(":app")
+include(":core", ":server")
+
+// The Android app needs the Android SDK. The server's Docker build passes -Psteamshelf.serverOnly=true to leave it out.
+if (providers.gradleProperty("steamshelf.serverOnly").orNull != "true") {
+    include(":app")
+}

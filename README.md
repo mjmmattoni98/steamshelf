@@ -1,7 +1,7 @@
 # SteamShelf
 
-An Android app for browsing your Steam library with **ProtonDB** ratings, **HowLongToBeat** times and
-filters that help you decide what to play next.
+An Android app, and a web app you host yourself, for browsing your Steam library with **ProtonDB** ratings,
+**HowLongToBeat** times and filters that help you decide what to play next.
 
 ## Features
 
@@ -62,6 +62,58 @@ old, or when the device language changed. Turning ProtonDB or HowLongToBeat on i
 straight away, and changing "Include free games" reloads the library; if a sync is running, it does an
 extra pass at the end to pick the change up. Turning a source off stops it mid-sync.
 
+## Web app (Raspberry Pi + Tailscale)
+
+The same library, filters and game pages in a browser, served from your own machine. The server runs the
+app's sync code (same sources, see `core/`), so it keeps the library, ratings and times fresh every six
+hours whether or not a browser is open, and the slow first HowLongToBeat pass doesn't need your phone.
+
+Differences from the app: you sign in through Steam on Steam's own page, and that sign-in also guards the web
+app. The first Steam account that signs in owns the server; any other account is turned away. The store
+language and country are set in Settings, where the phone follows the device language. The web app keeps its
+own data, so statuses and HLTB matches set on the phone don't carry over.
+
+**On the Raspberry Pi** (any 64-bit Raspberry Pi OS, or any Linux machine with Docker and Tailscale):
+
+```sh
+git clone <this repository> steamshelf && cd steamshelf
+docker compose up -d --build     # builds the server image on the Pi (a few minutes the first time)
+./deploy/tailscale-serve.sh      # once: publishes it on your tailnet with HTTPS
+```
+
+The script prints the address, e.g. `https://raspberrypi.your-tailnet.ts.net`. It uses port 443 when
+`tailscale serve` isn't already using it for something else on the Pi, and 8443 otherwise. Open it on any
+device in your tailnet, **Sign in through Steam**, then paste your Steam Web API key (as for the app).
+HTTPS through `tailscale serve` needs **MagicDNS** and **HTTPS certificates** turned on in the Tailscale
+admin console (DNS page); `tailscale serve` prints a link to do that if they're off.
+
+- **Updating:** `git pull && docker compose up -d --build`. Your data is in the `steamshelf-data` volume and
+  survives rebuilds (`docker compose down -v` deletes it).
+- **Logs:** `docker compose logs -f`.
+- **Port 8080 taken on the Pi?** Put `STEAMSHELF_HOST_PORT=8090` in a `.env` file next to
+  `docker-compose.yml` and run `docker compose up -d`. If you had already published SteamShelf, remove the old
+  entry first (`sudo tailscale serve --https=443 off`, or 8443) and run `./deploy/tailscale-serve.sh` again.
+- **Exposure:** the container only listens on `127.0.0.1`, so only `tailscale serve` (and so only your
+  tailnet) can reach it. The API key stays in the volume and is only sent to `api.steampowered.com`.
+  Session cookies are signed, HTTPS-only and last 90 days; signing out in Settings ends every session.
+- **Phone home screen:** in the browser menu, "Add to Home screen" / "Install app" gives it an icon and its
+  own window.
+
+Server settings (environment variables, all optional; see `docker-compose.yml`):
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `STEAMSHELF_PORT` | `8080` | Port inside the container. |
+| `STEAMSHELF_DATA_DIR` | `/data` | Where the API key, settings and cache are kept. |
+| `STEAMSHELF_PUBLIC_URL` | worked out per request | The address browsers use. Only needed behind a proxy that doesn't pass the host and `X-Forwarded-Proto`, which `tailscale serve` does. |
+| `STEAMSHELF_ALLOW_HTTP` | `false` | Allow signing in over plain HTTP (local development only). |
+
+**Working on the web app:** `./gradlew :server:runDev` starts it on <http://localhost:8080> against a fake
+Steam, ProtonDB and HowLongToBeat with a sample library. Open <http://localhost:8080/dev/sign-in> to sign in
+without a Steam account (that route exists only in this dev launcher), then enter
+`0123456789ABCDEF0123456789ABCDEF` as the API key. `./gradlew :server:installDist` builds a runnable copy
+in `server/build/install/steamshelf-server` if you'd rather run it without Docker (Java 17 or newer).
+
 ## Building
 
 Requirements: a JDK 17 installed (it doesn't need to be the default) and the Android SDK with
@@ -71,9 +123,9 @@ whatever `java` on your PATH is.
 
 ```sh
 ./gradlew assembleDebug                         # app/build/outputs/apk/debug/app-debug.apk
-./gradlew testDebugUnitTest                     # unit tests (offline, against local fake servers)
+./gradlew :core:test :server:test               # unit tests (offline, against local fake servers)
 ./gradlew lintDebug                             # Android lint
-LIVE_API_TESTS=1 ./gradlew testDebugUnitTest --tests '*LiveApiTest*'   # checks Steam/ProtonDB/HLTB still work
+LIVE_API_TESTS=1 ./gradlew :core:test --tests '*LiveApiTest*'   # checks Steam/ProtonDB/HLTB still work
 ```
 
 For a phone, build the release APK: `./gradlew assembleRelease` gives
@@ -101,8 +153,8 @@ or set `STEAMSHELF_KEYSTORE`, `STEAMSHELF_KEYSTORE_PASSWORD`, `STEAMSHELF_KEY_AL
 `./gradlew assembleRelease -PversionCode=2 -PversionName=1.1.0` (or `ORG_GRADLE_PROJECT_versionCode` /
 `ORG_GRADLE_PROJECT_versionName` in CI).
 
-**CI.** `.github/workflows/ci.yml` runs the unit tests and lint and builds the debug APK on every push and
-pull request. `.github/workflows/live-api.yml` runs the live API tests every Monday (and on demand from the
+**CI.** `.github/workflows/ci.yml` runs the unit tests and lint, builds the debug APK, and builds and
+smoke-tests the web server's Docker image on every push and pull request. `.github/workflows/live-api.yml` runs the live API tests every Monday (and on demand from the
 Actions tab), as an early warning when HowLongToBeat, ProtonDB or Steam change something.
 
 ## How it works
@@ -115,19 +167,40 @@ Actions tab), as an early warning when HowLongToBeat, ProtonDB or Steam change s
 | ProtonDB | `protondb.com/api/v1/reports/summaries/{appid}.json` | Unofficial but stable; what ProtonDB's site and browser extensions use. |
 | HowLongToBeat | `howlongtobeat.com/api/search/site` | No public API. The app uses the website's own search (token from `…/init`). HLTB renames this endpoint every few months; when that happens the app re-discovers the new path from the site's JavaScript automatically. |
 
-Code layout (`app/src/main/java/dev/steamshelf`):
+Code layout, by Gradle module:
+
+`core/` is the code the app and the web server share: plain Kotlin/JVM with no Android dependencies
+(`core/src/main/java/dev/steamshelf`).
 
 - `data/steam`, `data/protondb`, `data/hltb`: API clients. `HltbMatcher` maps Steam names to HLTB entries
   (edition suffixes stripped, edit distance + word overlap, release year as a tie-breaker).
 - `data/LibraryRepository`: the single source of truth, including the sync status. Syncs, caches to JSON
   files (written at most every few seconds and when the app goes to the background), refreshes stale entries.
-- `sync`: `SyncWorker` hosts the sync as long-running WorkManager work with a foreground notification.
 - `model`: games, filters and sorting (`LibraryFilter`, `LibraryQuery`), all plain Kotlin and unit tested.
+
+`app/` is the Android app (`app/src/main/java/dev/steamshelf`):
+
+- `sync`: `SyncWorker` hosts the sync as long-running WorkManager work with a foreground notification.
 - `ui`: Jetpack Compose screens (login, library, filters, game page, settings). All text is in
   `res/values/strings.xml`; `ui/common/Labels.kt` maps the model's enums to it.
 
-Tests (`app/src/test`): the model and matcher are tested directly; the API clients and the repository run
-against a local MockWebServer standing in for Steam, ProtonDB and HowLongToBeat (with recorded Steam
-responses in `app/src/test/resources`), with virtual time from kotlinx-coroutines-test.
+`server/` is the web app (`server/src/main/kotlin/dev/steamshelf/server`), a Ktor server that renders HTML
+with kotlinx.html and uses [htmx](https://htmx.org) (vendored in `resources/static`) for in-page updates:
+
+- `ServerContainer`: the counterpart of the app's `AppContainer`, plus the six-hourly auto-sync.
+- `Auth`: Steam OpenID sign-in, the owner lock, signed session cookies and the same-origin check for POSTs.
+- `library/LibraryParams`: the library view (filters, sort, search, layout) as URL parameters, so views can
+  be bookmarked and Back works. The library page is one GET form: htmx swaps the results and the server
+  answers with the canonical URL.
+- `routes`, `views`: pages and the htmx fragments they swap in. `Text.kt` has the English text, matching the
+  app's `strings.xml`.
+- `resources/static`: `app.css` (the app's colours, light and dark), `app.js` (image fallbacks, the filter
+  sheet, the match dialog, and live sync progress from `/events`, a server-sent event stream).
+
+Tests: the model and matcher are tested directly. The API clients and the repository run against a local
+MockWebServer standing in for Steam, ProtonDB and HowLongToBeat (recorded Steam responses are in
+`core/src/test/resources`), with virtual time from kotlinx-coroutines-test. The server tests
+(`server/src/test`) run the whole web app in Ktor's test engine against a fake backend
+(`fake/FakeBackend.kt`, which `runDev` uses too).
 
 Not affiliated with Valve, ProtonDB or HowLongToBeat.

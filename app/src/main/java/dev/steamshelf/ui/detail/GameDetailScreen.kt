@@ -415,10 +415,11 @@ private fun StoreCard(game: GameItem, tagNames: Map<Int, String>) {
         if (platforms.isNotEmpty()) InfoLine(stringResource(R.string.store_platforms), platforms)
         if (players.isNotEmpty()) InfoLine(stringResource(R.string.store_players), players)
         controller?.let { InfoLine(stringResource(R.string.store_controller), it) }
-        if (store.reviewCount != null && store.reviewCount > 0) {
+        val reviewCount = store.reviewCount
+        if (reviewCount != null && reviewCount > 0) {
             InfoLine(
                 stringResource(R.string.store_reviews),
-                stringResource(R.string.store_reviews_value, store.reviewLabel.orEmpty(), store.reviewPercent ?: 0, formatCount(store.reviewCount)).trim(),
+                stringResource(R.string.store_reviews_value, store.reviewLabel.orEmpty(), store.reviewPercent ?: 0, formatCount(reviewCount)).trim(),
             )
         }
         if (store.publishers.isNotEmpty()) InfoLine(stringResource(R.string.store_publisher), store.publishers.joinToString(", "))

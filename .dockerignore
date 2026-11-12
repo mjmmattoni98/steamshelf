@@ -1,0 +1,16 @@
+# Only core/, server/ and the Gradle files go into the image build.
+.git
+.github
+.gradle
+.idea
+.kotlin
+**/build
+app
+data
+local.properties
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.apk
+*.aab

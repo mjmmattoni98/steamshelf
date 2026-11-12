@@ -1,0 +1,15 @@
+{
+  "name": "SteamShelf",
+  "short_name": "SteamShelf",
+  "description": "Your Steam library with ProtonDB ratings and HowLongToBeat times.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#10151c",
+  "theme_color": "#10151c",
+  "icons": [
+    { "src": "/static/icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any" },
+    { "src": "/static/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "/static/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any maskable" }
+  ]
+}

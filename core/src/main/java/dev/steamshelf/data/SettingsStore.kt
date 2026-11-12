@@ -1,21 +1,17 @@
 package dev.steamshelf.data
 
-import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import dev.steamshelf.model.Account
 import dev.steamshelf.model.LibraryPrefs
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.Json
-
-private val Context.dataStore by preferencesDataStore(name = "settings")
 
 data class SyncPrefs(
     val autoProtonDb: Boolean = true,
@@ -26,7 +22,6 @@ data class SyncPrefs(
 
 /** Account, sync options and library view preferences, persisted with DataStore. */
 class SettingsStore(private val store: DataStore<Preferences>, private val json: Json) {
-    constructor(context: Context, json: Json) : this(context.applicationContext.dataStore, json)
 
     private object Keys {
         val STEAM_ID = stringPreferencesKey("steam_id")
