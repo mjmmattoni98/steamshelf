@@ -17,7 +17,22 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
-class SteamApiException(message: String) : Exception(message)
+/** A Steam failure the UI can explain; [message] stays English for logs, [reason] and [detail] drive the UI text. */
+class SteamApiException(val reason: Reason, message: String, val detail: String? = null) : Exception(message) {
+    enum class Reason {
+        NO_GAMES,
+        KEY_REJECTED,
+        RATE_LIMITED,
+        HTTP_ERROR,
+        PROFILE_NOT_FOUND,
+        VANITY_NOT_FOUND,
+        SIGN_IN_INVALID,
+        SIGN_IN_CANCELLED,
+        SIGN_IN_UNEXPECTED,
+        SIGN_IN_NO_STEAM_ID,
+        SIGN_IN_NOT_VERIFIED,
+    }
+}
 
 data class SteamProfile(
     val steamId: String,
@@ -27,7 +42,11 @@ data class SteamProfile(
 )
 
 /** Steam Web API + public store endpoints. */
-class SteamApi(private val client: OkHttpClient, private val json: Json) {
+class SteamApi(
+    private val client: OkHttpClient,
+    private val json: Json,
+    private val baseUrl: String = API_BASE,
+) {
 
     suspend fun getOwnedGames(apiKey: String, steamId: String, includeFreeGames: Boolean): List<OwnedGame> {
         val url = api("IPlayerService/GetOwnedGames/v1/")
@@ -41,6 +60,7 @@ class SteamApi(private val client: OkHttpClient, private val json: Json) {
         val body = get(url)
         val response = json.decodeFromString<OwnedGamesEnvelope>(body).response
         val games = response.games ?: throw SteamApiException(
+            SteamApiException.Reason.NO_GAMES,
             "Steam returned no games. Make sure the API key belongs to this account, " +
                 "or set \"Game details\" to Public in your Steam privacy settings.",
         )
@@ -63,7 +83,7 @@ class SteamApi(private val client: OkHttpClient, private val json: Json) {
             .addQueryParameter("steamids", steamId)
             .build()
         val player = json.decodeFromString<PlayersEnvelope>(get(url)).response.players.firstOrNull()
-            ?: throw SteamApiException("No Steam profile found for $steamId.")
+            ?: throw SteamApiException(SteamApiException.Reason.PROFILE_NOT_FOUND, "No Steam profile found for $steamId.", steamId)
         return SteamProfile(player.steamid, player.personaname, player.avatarfull, player.profileurl)
     }
 
@@ -74,15 +94,27 @@ class SteamApi(private val client: OkHttpClient, private val json: Json) {
             .build()
         val response = json.decodeFromString<VanityEnvelope>(get(url)).response
         return response.steamid?.takeIf { response.success == 1 }
-            ?: throw SteamApiException("Couldn't find a Steam profile called \"$vanity\".")
+            ?: throw SteamApiException(
+                SteamApiException.Reason.VANITY_NOT_FOUND,
+                "Couldn't find a Steam profile called \"$vanity\".",
+                vanity,
+            )
     }
 
-    /** Batched store metadata. Apps the store doesn't know (delisted, region-locked) come back with found=false. */
-    suspend fun getStoreItems(appIds: List<Int>, countryCode: String, now: Long): List<StoreInfo> {
+    /**
+     * Batched store metadata in [language] (a [SteamLanguage] code). Apps the store doesn't know (delisted,
+     * region-locked) come back with found=false.
+     */
+    suspend fun getStoreItems(
+        appIds: List<Int>,
+        countryCode: String,
+        now: Long,
+        language: String = SteamLanguage.ENGLISH,
+    ): List<StoreInfo> {
         val input = buildJsonObject {
             putJsonArray("ids") { appIds.forEach { id -> addJsonObject { put("appid", id) } } }
             putJsonObject("context") {
-                put("language", "english")
+                put("language", language)
                 put("country_code", countryCode)
             }
             putJsonObject("data_request") {
@@ -98,16 +130,17 @@ class SteamApi(private val client: OkHttpClient, private val json: Json) {
             .addQueryParameter("input_json", input.toString())
             .build()
         val items = json.decodeFromString<StoreItemsEnvelope>(get(url)).response.storeItems
-        val byId = items.associateBy { it.appid ?: it.id }
+        // Unknown apps come back with appid 0 and the requested id in "id".
+        val byId = items.associateBy { it.appid?.takeIf { id -> id != 0 } ?: it.id }
         return appIds.map { id ->
             val item = byId[id]
             if (item == null || item.success != 1) StoreInfo(appId = id, fetchedAt = now, found = false)
-            else item.toStoreInfo(id, now)
+            else item.toStoreInfo(id, now, language)
         }
     }
 
-    suspend fun getTagNames(): Map<Int, String> {
-        val url = api("IStoreService/GetTagList/v1/").addQueryParameter("language", "english").build()
+    suspend fun getTagNames(language: String = SteamLanguage.ENGLISH): Map<Int, String> {
+        val url = api("IStoreService/GetTagList/v1/").addQueryParameter("language", language).build()
         return json.decodeFromString<TagListEnvelope>(get(url)).response.tags.associate { it.tagid to it.name }
     }
 
@@ -115,15 +148,19 @@ class SteamApi(private val client: OkHttpClient, private val json: Json) {
         client.fetchString(Request.Builder().url(url).build())
     } catch (e: HttpStatusException) {
         throw when (e.code) {
-            401, 403 -> SteamApiException("Steam rejected the API key (HTTP ${e.code}). Check that it's correct.")
-            429 -> SteamApiException("Steam is rate limiting requests. Try again in a few minutes.")
-            else -> SteamApiException("Steam API error (HTTP ${e.code}).")
+            401, 403 -> SteamApiException(
+                SteamApiException.Reason.KEY_REJECTED,
+                "Steam rejected the API key (HTTP ${e.code}). Check that it's correct.",
+                e.code.toString(),
+            )
+            429 -> SteamApiException(SteamApiException.Reason.RATE_LIMITED, "Steam is rate limiting requests. Try again in a few minutes.")
+            else -> SteamApiException(SteamApiException.Reason.HTTP_ERROR, "Steam API error (HTTP ${e.code}).", e.code.toString())
         }
     }
 
-    private fun api(path: String): HttpUrl.Builder = "https://api.steampowered.com/$path".toHttpUrl().newBuilder()
+    private fun api(path: String): HttpUrl.Builder = "$baseUrl/$path".toHttpUrl().newBuilder()
 
-    private fun StoreItemDto.toStoreInfo(appId: Int, now: Long): StoreInfo {
+    private fun StoreItemDto.toStoreInfo(appId: Int, now: Long, language: String): StoreInfo {
         fun asset(file: String?): String? {
             val format = assets?.assetUrlFormat ?: return null
             if (file.isNullOrBlank()) return null
@@ -151,11 +188,13 @@ class SteamApi(private val client: OkHttpClient, private val json: Json) {
             headerImage = asset(assets?.header),
             capsuleImage = asset(assets?.libraryCapsule ?: assets?.libraryCapsule2x),
             heroImage = asset(assets?.libraryHero),
+            language = language,
         )
     }
 
-    private companion object {
-        const val ASSET_BASE = "https://shared.akamai.steamstatic.com/store_item_assets/"
+    companion object {
+        const val API_BASE = "https://api.steampowered.com"
+        private const val ASSET_BASE = "https://shared.akamai.steamstatic.com/store_item_assets/"
     }
 }
 

@@ -35,7 +35,12 @@ data class TagOption(val id: Int, val name: String, val count: Int)
 
 data class LibraryContent(
     val loaded: Boolean = false,
+    /** Every owned game, hidden ones included. */
     val totalCount: Int = 0,
+    /** Games the current view can show at most: hidden ones only count when "show hidden" is on. */
+    val shownTotal: Int = 0,
+    /** Visible games whose HLTB match should be checked. */
+    val reviewCount: Int = 0,
     val items: List<GameItem> = emptyList(),
     val stats: LibraryStats = LibraryStats(),
     val tags: List<TagOption> = emptyList(),
@@ -69,9 +74,12 @@ class LibraryViewModel(
         repository.loaded,
     ) { items, prefs, query, tagNames, loaded ->
         val visible = LibraryQuery.apply(items, prefs.filter, query, prefs.sort)
+        val shown = if (prefs.filter.showHidden) items else items.filterNot { it.hidden }
         LibraryContent(
             loaded = loaded,
             totalCount = items.size,
+            shownTotal = shown.size,
+            reviewCount = shown.count { it.hltbNeedsReview },
             items = visible,
             stats = LibraryStats.of(visible),
             tags = tagOptions(items, prefs.filter.tags, tagNames),
@@ -86,9 +94,6 @@ class LibraryViewModel(
         viewModelScope.launch {
             _prefs.value = settings.libraryPrefs.first()
             _prefs.filterNotNull().drop(1).debounce(400).collect { settings.saveLibraryPrefs(it) }
-        }
-        viewModelScope.launch {
-            if (repository.shouldAutoSync()) repository.sync()
         }
     }
 

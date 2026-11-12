@@ -3,12 +3,14 @@ package dev.steamshelf.ui.settings
 import android.webkit.CookieManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.steamshelf.R
 import dev.steamshelf.data.LibraryRepository
 import dev.steamshelf.data.SettingsStore
 import dev.steamshelf.data.SyncPrefs
 import dev.steamshelf.data.steam.SteamApi
 import dev.steamshelf.model.Account
 import dev.steamshelf.model.SyncStatus
+import dev.steamshelf.ui.common.UiText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,11 +32,11 @@ class SettingsViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SyncPrefs())
     val sync: StateFlow<SyncStatus> = repository.sync
 
-    private val _keyError = MutableStateFlow<String?>(null)
-    val keyError: StateFlow<String?> = _keyError.asStateFlow()
+    private val _keyError = MutableStateFlow<UiText?>(null)
+    val keyError: StateFlow<UiText?> = _keyError.asStateFlow()
 
-    private val _message = MutableStateFlow<String?>(null)
-    val message: StateFlow<String?> = _message.asStateFlow()
+    private val _message = MutableStateFlow<UiText?>(null)
+    val message: StateFlow<UiText?> = _message.asStateFlow()
 
     fun setAutoProtonDb(enabled: Boolean) = viewModelScope.launch { settings.setAutoProtonDb(enabled) }
     fun setAutoHltb(enabled: Boolean) = viewModelScope.launch { settings.setAutoHltb(enabled) }
@@ -42,12 +44,12 @@ class SettingsViewModel(
 
     fun refreshEverything() {
         repository.sync(force = true)
-        _message.value = "Refreshing your library and all ratings in the background."
+        _message.value = UiText.Res(R.string.settings_refreshing)
     }
 
     fun clearCachedData() = viewModelScope.launch {
         repository.clearEnrichment()
-        _message.value = "Cleared. Ratings and times are being fetched again."
+        _message.value = UiText.Res(R.string.settings_cleared)
     }
 
     fun messageShown() {
@@ -59,7 +61,7 @@ class SettingsViewModel(
         val trimmed = key.trim()
         val current = settings.account.first() ?: return@launch
         if (!Regex("^[A-Fa-f0-9]{32}$").matches(trimmed)) {
-            _keyError.value = "A Steam Web API key is 32 letters and numbers (0-9, A-F)."
+            _keyError.value = UiText.Res(R.string.error_api_key_format)
             return@launch
         }
         try {
@@ -70,7 +72,7 @@ class SettingsViewModel(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            _keyError.value = e.message ?: "Couldn't verify the key."
+            _keyError.value = UiText.Error(e)
         }
     }
 

@@ -1,13 +1,16 @@
 package dev.steamshelf.ui.login
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.steamshelf.R
 import dev.steamshelf.data.LibraryRepository
 import dev.steamshelf.data.SettingsStore
 import dev.steamshelf.data.steam.SteamApi
 import dev.steamshelf.data.steam.SteamIdInput
 import dev.steamshelf.data.steam.SteamOpenId
 import dev.steamshelf.model.Account
+import dev.steamshelf.ui.common.UiText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +24,7 @@ data class LoginUiState(
     val apiKey: String = "",
     val signedInViaSteam: Boolean = false,
     val busy: Boolean = false,
-    val error: String? = null,
+    val error: UiText? = null,
 )
 
 class LoginViewModel(
@@ -53,10 +56,10 @@ class LoginViewModel(
     fun connect() = run {
         val current = _state.value
         val input = SteamIdInput.parse(current.steamIdInput)
-            ?: throw IllegalArgumentException("Sign in through Steam, or enter your SteamID64 or profile URL.")
+            ?: throw InvalidInput(R.string.login_error_no_id)
         val key = current.apiKey
         if (!API_KEY.matches(key)) {
-            throw IllegalArgumentException("A Steam Web API key is 32 letters and numbers (0-9, A-F).")
+            throw InvalidInput(R.string.error_api_key_format)
         }
         _state.update { it.copy(busy = true, error = null) }
         try {
@@ -80,11 +83,15 @@ class LoginViewModel(
                 block()
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: InvalidInput) {
+                _state.update { it.copy(error = UiText.Res(e.messageRes)) }
             } catch (e: Exception) {
-                _state.update { it.copy(error = e.message ?: "Something went wrong.") }
+                _state.update { it.copy(error = UiText.Error(e)) }
             }
         }
     }
+
+    private class InvalidInput(@param:StringRes val messageRes: Int) : Exception()
 
     private companion object {
         val API_KEY = Regex("^[A-Fa-f0-9]{32}$")

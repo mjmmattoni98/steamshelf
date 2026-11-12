@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -61,9 +62,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
+import androidx.annotation.StringRes
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import dev.steamshelf.R
 import dev.steamshelf.model.DeckFilter
 import dev.steamshelf.model.LengthFilter
 import dev.steamshelf.model.LibraryFilter
@@ -76,6 +82,8 @@ import dev.steamshelf.model.SyncPhase
 import dev.steamshelf.model.SyncStatus
 import dev.steamshelf.model.ViewMode
 import dev.steamshelf.ui.common.formatHours
+import dev.steamshelf.ui.common.labelRes
+import dev.steamshelf.ui.common.message
 import dev.steamshelf.ui.common.toggle
 import java.text.NumberFormat
 
@@ -94,10 +102,12 @@ fun LibraryScreen(
     var showSortMenu by remember { mutableStateOf(false) }
     val snackbar = remember { SnackbarHostState() }
 
+    val resources = LocalResources.current
     LaunchedEffect(state.sync.errorId) {
         val error = state.sync.error
-        if (error != null && viewModel.consumeError(state.sync.errorId)) snackbar.showSnackbar(error)
+        if (error != null && viewModel.consumeError(state.sync.errorId)) snackbar.showSnackbar(error.message(resources))
     }
+    NotificationPermissionRequest(syncRunning = state.sync.running)
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -105,11 +115,20 @@ fun LibraryScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Library")
+                        Text(stringResource(R.string.library_title))
                         if (content.totalCount > 0) {
+                            val number = NumberFormat.getIntegerInstance()
                             Text(
-                                if (content.items.size == content.totalCount) "${content.totalCount} games"
-                                else "${content.items.size} of ${content.totalCount} games",
+                                if (content.items.size == content.shownTotal) {
+                                    pluralStringResource(R.plurals.library_count, content.shownTotal, number.format(content.shownTotal))
+                                } else {
+                                    pluralStringResource(
+                                        R.plurals.library_count_filtered,
+                                        content.shownTotal,
+                                        number.format(content.items.size),
+                                        number.format(content.shownTotal),
+                                    )
+                                },
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -120,21 +139,21 @@ fun LibraryScreen(
                     IconButton(
                         onClick = { viewModel.randomPick()?.let(onOpenGame) },
                         enabled = content.items.isNotEmpty(),
-                    ) { Icon(Icons.Default.Casino, contentDescription = "Pick a random game") }
+                    ) { Icon(Icons.Default.Casino, contentDescription = stringResource(R.string.random_pick)) }
                     Box {
                         IconButton(onClick = { showSortMenu = true }) {
-                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort")
+                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = stringResource(R.string.sort))
                         }
                         DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
                             SortField.entries.forEach { field ->
                                 val active = prefs.sort.field == field
                                 DropdownMenuItem(
-                                    text = { Text(field.label, color = if (active) MaterialTheme.colorScheme.primary else Color.Unspecified) },
+                                    text = { Text(stringResource(field.labelRes()), color = if (active) MaterialTheme.colorScheme.primary else Color.Unspecified) },
                                     trailingIcon = if (active) {
                                         {
                                             Icon(
                                                 if (prefs.sort.descending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                                                contentDescription = if (prefs.sort.descending) "Descending" else "Ascending",
+                                                contentDescription = stringResource(if (prefs.sort.descending) R.string.sort_descending else R.string.sort_ascending),
                                                 tint = MaterialTheme.colorScheme.primary,
                                             )
                                         }
@@ -152,7 +171,7 @@ fun LibraryScreen(
                     IconButton(onClick = viewModel::toggleViewMode) {
                         Icon(
                             if (prefs.viewMode == ViewMode.LIST) Icons.Default.GridView else Icons.AutoMirrored.Filled.ViewList,
-                            contentDescription = "Switch layout",
+                            contentDescription = stringResource(R.string.switch_layout),
                         )
                     }
                     IconButton(onClick = onOpenSettings) {
@@ -160,13 +179,13 @@ fun LibraryScreen(
                         if (avatar != null) {
                             AsyncImage(
                                 model = avatar,
-                                contentDescription = "Settings",
+                                contentDescription = stringResource(R.string.settings_title),
                                 modifier = Modifier
                                     .size(30.dp)
                                     .clip(CircleShape),
                             )
                         } else {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings")
+                            Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings_title))
                         }
                     }
                 },
@@ -181,6 +200,7 @@ fun LibraryScreen(
             SearchField(query, viewModel::setQuery)
             QuickFilters(
                 filter = prefs.filter,
+                reviewCount = content.reviewCount,
                 onOpenAll = { showFilters = true },
                 onUpdate = viewModel::updateFilter,
                 onClear = viewModel::clearFilters,
@@ -196,17 +216,17 @@ fun LibraryScreen(
             ) {
                 when {
                     !content.loaded -> CenteredLoading()
-                    content.totalCount == 0 && state.sync.running -> CenteredLoading("Loading your library…")
+                    content.totalCount == 0 && state.sync.running -> CenteredLoading(stringResource(R.string.library_loading))
                     content.totalCount == 0 -> EmptyState(
-                        "No games yet",
-                        "Pull down to load your Steam library.",
-                        "Load library",
+                        stringResource(R.string.library_empty_title),
+                        stringResource(R.string.library_empty_message),
+                        stringResource(R.string.library_empty_action),
                         viewModel::refresh,
                     )
                     content.items.isEmpty() -> EmptyState(
-                        "No games match",
-                        "Try removing a filter or changing the search.",
-                        "Clear filters",
+                        stringResource(R.string.library_no_match_title),
+                        stringResource(R.string.library_no_match_message),
+                        stringResource(R.string.library_no_match_action),
                     ) {
                         viewModel.clearFilters()
                         viewModel.setQuery("")
@@ -261,11 +281,11 @@ private fun SearchField(query: String, onChange: (String) -> Unit) {
     TextField(
         value = query,
         onValueChange = onChange,
-        placeholder = { Text("Search your library") },
+        placeholder = { Text(stringResource(R.string.search_hint)) },
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
         trailingIcon = {
             if (query.isNotEmpty()) {
-                IconButton(onClick = { onChange("") }) { Icon(Icons.Default.Clear, contentDescription = "Clear search") }
+                IconButton(onClick = { onChange("") }) { Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.search_clear)) }
             }
         },
         singleLine = true,
@@ -287,29 +307,30 @@ private val UNDER_15H = setOf(LengthFilter.SHORT, LengthFilter.MEDIUM)
 @Composable
 private fun QuickFilters(
     filter: LibraryFilter,
+    reviewCount: Int,
     onOpenAll: () -> Unit,
     onUpdate: ((LibraryFilter) -> LibraryFilter) -> Unit,
     onClear: () -> Unit,
 ) {
-    data class Quick(val label: String, val selected: Boolean, val toggle: (LibraryFilter) -> LibraryFilter)
+    data class Quick(@StringRes val label: Int, val selected: Boolean, val toggle: (LibraryFilter) -> LibraryFilter)
 
     val quick = listOf(
-        Quick("Never played", PlayStateFilter.UNPLAYED in filter.playStates) {
+        Quick(R.string.play_state_unplayed, PlayStateFilter.UNPLAYED in filter.playStates) {
             it.copy(playStates = it.playStates.toggle(PlayStateFilter.UNPLAYED))
         },
-        Quick("In progress", PlayStateFilter.IN_PROGRESS in filter.playStates) {
+        Quick(R.string.quick_in_progress, PlayStateFilter.IN_PROGRESS in filter.playStates) {
             it.copy(playStates = it.playStates.toggle(PlayStateFilter.IN_PROGRESS))
         },
-        Quick("Runs great on Linux", filter.proton.containsAll(LINUX_READY)) {
+        Quick(R.string.quick_linux, filter.proton.containsAll(LINUX_READY)) {
             it.copy(proton = if (it.proton.containsAll(LINUX_READY)) it.proton - LINUX_READY else it.proton + LINUX_READY)
         },
-        Quick("Deck Verified", DeckFilter.VERIFIED in filter.deck) {
+        Quick(R.string.quick_deck_verified, DeckFilter.VERIFIED in filter.deck) {
             it.copy(deck = it.deck.toggle(DeckFilter.VERIFIED))
         },
-        Quick("Under 15 h", filter.length.containsAll(UNDER_15H) && filter.length.size == UNDER_15H.size) {
+        Quick(R.string.quick_under_15h, filter.length.containsAll(UNDER_15H) && filter.length.size == UNDER_15H.size) {
             it.copy(length = if (it.length == UNDER_15H) emptySet() else UNDER_15H)
         },
-        Quick("Played recently", PlayStateFilter.RECENT in filter.playStates) {
+        Quick(R.string.quick_recent, PlayStateFilter.RECENT in filter.playStates) {
             it.copy(playStates = it.playStates.toggle(PlayStateFilter.RECENT))
         },
     )
@@ -322,7 +343,12 @@ private fun QuickFilters(
             FilterChip(
                 selected = filter.activeCount > 0,
                 onClick = onOpenAll,
-                label = { Text(if (filter.activeCount > 0) "Filters · ${filter.activeCount}" else "Filters") },
+                label = {
+                    Text(
+                        if (filter.activeCount > 0) stringResource(R.string.filters_count, filter.activeCount)
+                        else stringResource(R.string.filters),
+                    )
+                },
                 leadingIcon = { Icon(Icons.Default.FilterList, contentDescription = null, modifier = Modifier.size(18.dp)) },
             )
         }
@@ -331,13 +357,29 @@ private fun QuickFilters(
                 FilterChip(
                     selected = false,
                     onClick = onClear,
-                    label = { Text("Clear") },
+                    label = { Text(stringResource(R.string.clear)) },
                     leadingIcon = { Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp)) },
                 )
             }
         }
+        // Only offered when there's something to check (or the filter is on, so it can be turned off).
+        if (reviewCount > 0 || filter.hltbNeedsReview) {
+            item(key = "hltb-review") {
+                FilterChip(
+                    selected = filter.hltbNeedsReview,
+                    onClick = { onUpdate { it.copy(hltbNeedsReview = !it.hltbNeedsReview) } },
+                    label = {
+                        Text(
+                            if (reviewCount > 0) stringResource(R.string.quick_check_hltb, reviewCount)
+                            else stringResource(R.string.quick_check_hltb_none),
+                        )
+                    },
+                    leadingIcon = { Icon(Icons.Default.Warning, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                )
+            }
+        }
         items(quick, key = { it.label }) { q ->
-            FilterChip(selected = q.selected, onClick = { onUpdate(q.toggle) }, label = { Text(q.label) })
+            FilterChip(selected = q.selected, onClick = { onUpdate(q.toggle) }, label = { Text(stringResource(q.label)) })
         }
     }
 }
@@ -352,10 +394,8 @@ private fun SyncBar(sync: SyncStatus, onCancel: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            val label = buildString {
-                append(sync.phase?.label ?: "Syncing")
-                if (sync.total > 0) append(" · ${sync.done}/${sync.total}")
-            }
+            val phase = stringResource(sync.phase?.labelRes() ?: R.string.sync_starting)
+            val label = if (sync.total > 0) stringResource(R.string.sync_bar_progress, phase, sync.done, sync.total) else phase
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (sync.total > 0) {
                 LinearProgressIndicator(
@@ -374,16 +414,21 @@ private fun SyncBar(sync: SyncStatus, onCancel: () -> Unit) {
                 )
             }
         }
-        IconButton(onClick = onCancel) { Icon(Icons.Default.Close, contentDescription = "Stop syncing") }
+        IconButton(onClick = onCancel) { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.sync_stop_description)) }
     }
 }
 
 @Composable
 private fun StatsLine(stats: LibraryStats) {
     val number = NumberFormat.getIntegerInstance()
-    val text = buildString {
-        append("${number.format(stats.count)} games · ${formatHours(stats.playedHours)} played")
-        if (stats.withHltb > 0) append(" · ≈ ${formatHours(stats.remainingHours)} left to beat")
+    val res = LocalResources.current
+    val played = pluralStringResource(
+        R.plurals.stats_line, stats.count, number.format(stats.count), formatHours(res, stats.playedHours),
+    )
+    val text = if (stats.withHltb > 0) {
+        stringResource(R.string.stats_left_to_beat, played, formatHours(res, stats.remainingHours))
+    } else {
+        played
     }
     Text(
         text,

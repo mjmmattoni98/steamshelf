@@ -3,34 +3,37 @@ package dev.steamshelf.model
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class PlayStateFilter(val label: String) {
-    UNPLAYED("Never played"),
-    TRIED("Played < 2 h"),
-    IN_PROGRESS("Started, not beaten"),
-    BEATEN("Past main story"),
-    RECENT("Played last 2 weeks");
+enum class PlayStateFilter {
+    UNPLAYED,
+    TRIED,
+    IN_PROGRESS,
+    BEATEN,
+    RECENT,
+    DROPPED;
 
     fun matches(item: GameItem): Boolean {
         val minutes = item.game.playtimeForever
         return when (this) {
-            UNPLAYED -> minutes == 0
+            // A game the user has finished or given up on isn't backlog, even with no playtime on Steam.
+            UNPLAYED -> minutes == 0 && item.status != PlayStatus.FINISHED && !item.dropped
             TRIED -> minutes in 1 until 120
-            IN_PROGRESS -> minutes > 0 && (item.beatHours == null || item.playtimeHours < item.beatHours)
-            BEATEN -> item.beatHours != null && item.playtimeHours >= item.beatHours
+            IN_PROGRESS -> minutes > 0 && !item.beaten && !item.dropped
+            BEATEN -> item.beaten
             RECENT -> item.game.playtime2Weeks > 0
+            DROPPED -> item.dropped
         }
     }
 }
 
 @Serializable
-enum class ProtonFilter(val label: String) {
-    NATIVE("Native Linux"),
-    PLATINUM("Platinum"),
-    GOLD("Gold"),
-    SILVER("Silver"),
-    BRONZE("Bronze"),
-    BORKED("Borked"),
-    NO_REPORTS("No reports");
+enum class ProtonFilter {
+    NATIVE,
+    PLATINUM,
+    GOLD,
+    SILVER,
+    BRONZE,
+    BORKED,
+    NO_REPORTS;
 
     fun matches(item: GameItem): Boolean = when (this) {
         NATIVE -> item.linuxNative
@@ -44,22 +47,22 @@ enum class ProtonFilter(val label: String) {
 }
 
 @Serializable
-enum class DeckFilter(val label: String, val compat: DeckCompat) {
-    VERIFIED("Verified", DeckCompat.VERIFIED),
-    PLAYABLE("Playable", DeckCompat.PLAYABLE),
-    UNSUPPORTED("Unsupported", DeckCompat.UNSUPPORTED),
-    UNKNOWN("Unknown", DeckCompat.UNKNOWN);
+enum class DeckFilter(val compat: DeckCompat) {
+    VERIFIED(DeckCompat.VERIFIED),
+    PLAYABLE(DeckCompat.PLAYABLE),
+    UNSUPPORTED(DeckCompat.UNSUPPORTED),
+    UNKNOWN(DeckCompat.UNKNOWN);
 
     fun matches(item: GameItem): Boolean = item.deck == compat
 }
 
 @Serializable
-enum class LengthFilter(val label: String, val minHours: Double, val maxHours: Double) {
-    SHORT("Under 5 h", 0.0, 5.0),
-    MEDIUM("5–15 h", 5.0, 15.0),
-    LONG("15–40 h", 15.0, 40.0),
-    VERY_LONG("40 h +", 40.0, Double.MAX_VALUE),
-    UNKNOWN("No HLTB data", -1.0, -1.0);
+enum class LengthFilter(val minHours: Double, val maxHours: Double) {
+    SHORT(0.0, 5.0),
+    MEDIUM(5.0, 15.0),
+    LONG(15.0, 40.0),
+    VERY_LONG(40.0, Double.MAX_VALUE),
+    UNKNOWN(-1.0, -1.0);
 
     fun matches(item: GameItem): Boolean {
         val hours = item.beatHours
@@ -69,11 +72,11 @@ enum class LengthFilter(val label: String, val minHours: Double, val maxHours: D
 
 /** Steam "supported player" category ids. */
 @Serializable
-enum class PlayerModeFilter(val label: String, val categoryIds: Set<Int>) {
-    SINGLE("Single-player", setOf(2)),
-    COOP("Co-op", setOf(9, 38, 39, 48)),
-    MULTIPLAYER("Multiplayer", setOf(1, 20, 27, 36, 47, 49)),
-    SPLIT_SCREEN("Local / split screen", setOf(24, 37, 39));
+enum class PlayerModeFilter(val categoryIds: Set<Int>) {
+    SINGLE(setOf(2)),
+    COOP(setOf(9, 38, 39, 48)),
+    MULTIPLAYER(setOf(1, 20, 27, 36, 47, 49)),
+    SPLIT_SCREEN(setOf(24, 37, 39));
 
     fun matches(item: GameItem): Boolean =
         item.store?.playerCategoryIds?.any { it in categoryIds } == true
@@ -93,12 +96,18 @@ data class LibraryFilter(
     val minReviewPercent: Int = 0,
     val tags: Set<Int> = emptySet(),
     val fullControllerSupport: Boolean = false,
+    /** Only automatic HLTB matches that are a fuzzy fit, so the user can check them. */
+    val hltbNeedsReview: Boolean = false,
+    /** Include games the user marked as hidden. */
+    val showHidden: Boolean = false,
 ) {
     val activeCount: Int
         get() = listOf(playStates, proton, deck, length, playerModes, tags).count { it.isNotEmpty() } +
-            (if (minReviewPercent > 0) 1 else 0) + (if (fullControllerSupport) 1 else 0)
+            listOf(minReviewPercent > 0, fullControllerSupport, hltbNeedsReview, showHidden).count { it }
 
     fun matches(item: GameItem): Boolean {
+        if (item.hidden && !showHidden) return false
+        if (hltbNeedsReview && !item.hltbNeedsReview) return false
         if (playStates.isNotEmpty() && playStates.none { it.matches(item) }) return false
         if (proton.isNotEmpty() && proton.none { it.matches(item) }) return false
         if (deck.isNotEmpty() && deck.none { it.matches(item) }) return false
@@ -114,15 +123,15 @@ data class LibraryFilter(
 }
 
 @Serializable
-enum class SortField(val label: String, val defaultDescending: Boolean) {
-    NAME("Name", false),
-    PLAYTIME("Playtime", true),
-    LAST_PLAYED("Last played", true),
-    TIME_TO_BEAT("Time to beat", false),
-    TIME_LEFT("Time left to beat", false),
-    PROTONDB("ProtonDB rating", true),
-    REVIEWS("Steam reviews", true),
-    RELEASE("Release date", true),
+enum class SortField(val defaultDescending: Boolean) {
+    NAME(false),
+    PLAYTIME(true),
+    LAST_PLAYED(true),
+    TIME_TO_BEAT(false),
+    TIME_LEFT(false),
+    PROTONDB(true),
+    REVIEWS(true),
+    RELEASE(true),
 }
 
 @Serializable

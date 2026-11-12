@@ -46,7 +46,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -86,21 +88,21 @@ fun LoginScreen(viewModel: LoginViewModel) {
                     .size(96.dp)
                     .clip(RoundedCornerShape(24.dp)),
             )
-            Text("SteamShelf", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Text(
-                "Your Steam library with ProtonDB ratings, HowLongToBeat times and filters that help you pick what to play next.",
+                stringResource(R.string.login_tagline),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.widthIn(max = 480.dp),
             )
 
-            StepCard(number = 1, title = "Your Steam account") {
+            StepCard(number = 1, title = stringResource(R.string.login_step_account)) {
                 if (state.signedInViaSteam) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                         Column(Modifier.weight(1f)) {
-                            Text("Signed in through Steam", style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(R.string.login_signed_in_via_steam), style = MaterialTheme.typography.bodyMedium)
                             Text(
                                 state.steamIdInput,
                                 style = MaterialTheme.typography.bodySmall,
@@ -108,7 +110,7 @@ fun LoginScreen(viewModel: LoginViewModel) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        TextButton(onClick = { viewModel.onSteamIdChange("") }) { Text("Change") }
+                        TextButton(onClick = { viewModel.onSteamIdChange("") }) { Text(stringResource(R.string.change)) }
                     }
                 } else {
                     Button(
@@ -118,22 +120,23 @@ fun LoginScreen(viewModel: LoginViewModel) {
                     ) {
                         Icon(Icons.AutoMirrored.Filled.Login, contentDescription = null)
                         Spacer(Modifier.size(8.dp))
-                        Text("Sign in through Steam")
+                        Text(stringResource(R.string.login_sign_in_with_steam))
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         HorizontalDivider(Modifier.weight(1f))
                         Text(
-                            "  or enter it  ",
+                            stringResource(R.string.login_or_enter_it),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 8.dp),
                         )
                         HorizontalDivider(Modifier.weight(1f))
                     }
                     OutlinedTextField(
                         value = state.steamIdInput,
                         onValueChange = viewModel::onSteamIdChange,
-                        label = { Text("SteamID64, profile URL or custom URL") },
-                        placeholder = { Text("steamcommunity.com/id/yourname") },
+                        label = { Text(stringResource(R.string.login_steam_id_label)) },
+                        placeholder = { Text(stringResource(R.string.login_steam_id_placeholder)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next),
                         modifier = Modifier.fillMaxWidth(),
@@ -141,22 +144,21 @@ fun LoginScreen(viewModel: LoginViewModel) {
                 }
             }
 
-            StepCard(number = 2, title = "Steam Web API key") {
+            StepCard(number = 2, title = stringResource(R.string.login_step_key)) {
                 Text(
-                    "Steam only shares your full library and playtime through its Web API, which needs a free personal key. " +
-                        "On the key page, enter any domain name (for example \"localhost\") and copy the key.",
+                    stringResource(R.string.login_key_explanation),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 OutlinedButton(onClick = { openUrl(context, API_KEY_PAGE) }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.size(8.dp))
-                    Text("Get your API key")
+                    Text(stringResource(R.string.login_get_key))
                 }
                 OutlinedTextField(
                     value = state.apiKey,
                     onValueChange = viewModel::onApiKeyChange,
-                    label = { Text("API key") },
+                    label = { Text(stringResource(R.string.login_key_label)) },
                     singleLine = true,
                     visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
@@ -165,7 +167,7 @@ fun LoginScreen(viewModel: LoginViewModel) {
                         IconButton(onClick = { keyVisible = !keyVisible }) {
                             Icon(
                                 if (keyVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (keyVisible) "Hide key" else "Show key",
+                                contentDescription = stringResource(if (keyVisible) R.string.login_hide_key else R.string.login_show_key),
                             )
                         }
                     },
@@ -175,7 +177,7 @@ fun LoginScreen(viewModel: LoginViewModel) {
 
             state.error?.let {
                 Text(
-                    it,
+                    it.resolve(LocalResources.current),
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
@@ -194,12 +196,12 @@ fun LoginScreen(viewModel: LoginViewModel) {
                 if (state.busy) {
                     CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
                 } else {
-                    Text("Connect", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.login_connect), style = MaterialTheme.typography.titleMedium)
                 }
             }
 
             Text(
-                "Your key stays on this device and is only sent to api.steampowered.com.",
+                stringResource(R.string.login_key_privacy),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -228,7 +230,7 @@ private fun StepCard(number: Int, title: String, content: @Composable () -> Unit
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                "STEP $number",
+                stringResource(R.string.login_step, number),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,

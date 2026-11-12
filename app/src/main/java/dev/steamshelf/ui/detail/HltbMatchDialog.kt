@@ -35,12 +35,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import dev.steamshelf.R
 import dev.steamshelf.data.hltb.HltbGame
 import dev.steamshelf.ui.common.SteamImage
 import dev.steamshelf.ui.common.formatSeconds
@@ -68,7 +71,7 @@ fun HltbMatchDialog(
                 TopAppBar(
                     title = {
                         Column {
-                            Text("Match on HowLongToBeat")
+                            Text(stringResource(R.string.match_title))
                             Text(
                                 gameName,
                                 style = MaterialTheme.typography.labelMedium,
@@ -79,14 +82,14 @@ fun HltbMatchDialog(
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close") }
+                        IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close)) }
                     },
                 )
                 OutlinedTextField(
                     value = state.query,
                     onValueChange = onQueryChange,
                     singleLine = true,
-                    label = { Text("Search HowLongToBeat") },
+                    label = { Text(stringResource(R.string.match_search_label)) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { onSearch(state.query) }),
@@ -103,14 +106,14 @@ fun HltbMatchDialog(
                         state.searching && state.results.isEmpty() ->
                             CircularProgressIndicator(Modifier.align(Alignment.Center))
                         state.error != null -> Text(
-                            state.error,
+                            state.error.resolve(LocalResources.current),
                             color = MaterialTheme.colorScheme.error,
                             modifier = Modifier
                                 .align(Alignment.Center)
                                 .padding(24.dp),
                         )
                         state.results.isEmpty() -> Text(
-                            "No results. Try a shorter or different name.",
+                            stringResource(R.string.match_no_results),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier
                                 .align(Alignment.Center)
@@ -130,8 +133,8 @@ fun HltbMatchDialog(
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    OutlinedButton(onClick = onNoMatch, modifier = Modifier.weight(1f)) { Text("Not on HLTB") }
-                    OutlinedButton(onClick = onAutoMatch, modifier = Modifier.weight(1f)) { Text("Auto-match") }
+                    OutlinedButton(onClick = onNoMatch, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.match_not_on_hltb)) }
+                    OutlinedButton(onClick = onAutoMatch, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.match_auto)) }
                 }
             }
         }
@@ -172,13 +175,14 @@ private fun ResultRow(game: HltbGame, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            val res = LocalResources.current
             val times = listOfNotNull(
-                formatSeconds(game.main)?.let { "Main $it" },
-                formatSeconds(game.plus)?.let { "+Extras $it" },
-                formatSeconds(game.completionist)?.let { "100% $it" },
+                formatSeconds(res, game.main)?.let { res.getString(R.string.match_time_main, it) },
+                formatSeconds(res, game.plus)?.let { res.getString(R.string.match_time_extras, it) },
+                formatSeconds(res, game.completionist)?.let { res.getString(R.string.match_time_completionist, it) },
             ).joinToString(" · ")
             Text(
-                times.ifEmpty { "No times yet" },
+                times.ifEmpty { stringResource(R.string.match_no_times) },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
             )

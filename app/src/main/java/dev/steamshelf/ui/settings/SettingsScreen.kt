@@ -44,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -51,6 +52,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import dev.steamshelf.BuildConfig
+import dev.steamshelf.R
+import androidx.compose.ui.res.stringResource
+import dev.steamshelf.ui.common.labelRes
 import dev.steamshelf.ui.common.SectionCard
 import dev.steamshelf.ui.common.openUrl
 
@@ -67,9 +71,10 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
     var editingKey by rememberSaveable { mutableStateOf(false) }
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
 
+    val res = LocalResources.current
     LaunchedEffect(message) {
         message?.let {
-            snackbar.showSnackbar(it)
+            snackbar.showSnackbar(it.resolve(res))
             viewModel.messageShown()
         }
     }
@@ -78,9 +83,9 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back)) }
                 },
             )
         },
@@ -95,7 +100,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             account?.let { acc ->
-                SectionCard("Steam account") {
+                SectionCard(stringResource(R.string.settings_account)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         if (acc.avatarUrl != null) {
                             AsyncImage(
@@ -114,7 +119,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
                             )
                         }
                         Column(Modifier.weight(1f)) {
-                            Text(acc.personaName.ifEmpty { "Steam user" }, style = MaterialTheme.typography.titleMedium)
+                            Text(acc.personaName.ifEmpty { stringResource(R.string.settings_steam_user) }, style = MaterialTheme.typography.titleMedium)
                             Text(
                                 acc.steamId,
                                 style = MaterialTheme.typography.bodySmall,
@@ -125,71 +130,75 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         acc.profileUrl?.let { url ->
-                            OutlinedButton(onClick = { openUrl(context, url, externalApp = true) }) { Text("View profile") }
+                            OutlinedButton(onClick = { openUrl(context, url, externalApp = true) }) { Text(stringResource(R.string.settings_view_profile)) }
                         }
-                        OutlinedButton(onClick = { confirmSignOut = true }) { Text("Sign out") }
+                        OutlinedButton(onClick = { confirmSignOut = true }) { Text(stringResource(R.string.settings_sign_out)) }
                     }
                     HorizontalDivider()
                     SettingRow(
-                        title = "Steam Web API key",
+                        title = stringResource(R.string.settings_api_key),
                         subtitle = "••••••••••••" + acc.apiKey.takeLast(4),
-                        trailing = { TextButton(onClick = { editingKey = true }) { Text("Change") } },
+                        trailing = { TextButton(onClick = { editingKey = true }) { Text(stringResource(R.string.change)) } },
                     )
                 }
             }
 
-            SectionCard("Data sources") {
+            SectionCard(stringResource(R.string.settings_data_sources)) {
                 SwitchRow(
-                    "ProtonDB ratings",
-                    "Fetch Linux/Proton compatibility for every game.",
+                    stringResource(R.string.settings_protondb),
+                    stringResource(R.string.settings_protondb_hint),
                     prefs.autoProtonDb,
                     viewModel::setAutoProtonDb,
                 )
                 SwitchRow(
-                    "HowLongToBeat times",
-                    "Look up every game on HowLongToBeat. Big libraries take a few minutes the first time; results are cached for a month.",
+                    stringResource(R.string.settings_hltb),
+                    stringResource(R.string.settings_hltb_hint),
                     prefs.autoHltb,
                     viewModel::setAutoHltb,
                 )
                 SwitchRow(
-                    "Include free games",
-                    "Show free-to-play games you've launched.",
+                    stringResource(R.string.settings_free_games),
+                    stringResource(R.string.settings_free_games_hint),
                     prefs.includeFreeGames,
                     viewModel::setIncludeFreeGames,
                 )
             }
 
-            SectionCard("Sync") {
+            SectionCard(stringResource(R.string.settings_sync)) {
+                val phase = stringResource(sync.phase?.labelRes() ?: R.string.sync_starting)
                 Text(
-                    if (sync.running) "${sync.phase?.label ?: "Syncing"}… ${if (sync.total > 0) "${sync.done}/${sync.total}" else ""}"
-                    else if (prefs.lastLibrarySync > 0) "Library last synced ${
-                        android.text.format.DateUtils.getRelativeTimeSpanString(prefs.lastLibrarySync)
-                    }"
-                    else "Not synced yet",
+                    when {
+                        sync.running && sync.total > 0 -> stringResource(R.string.settings_sync_running_count, phase, sync.done, sync.total)
+                        sync.running -> stringResource(R.string.settings_sync_running, phase)
+                        prefs.lastLibrarySync > 0 -> stringResource(
+                            R.string.settings_last_synced,
+                            android.text.format.DateUtils.getRelativeTimeSpanString(prefs.lastLibrarySync).toString(),
+                        )
+                        else -> stringResource(R.string.settings_not_synced)
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = viewModel::refreshEverything, enabled = !sync.running) { Text("Refresh everything") }
-                    OutlinedButton(onClick = { viewModel.clearCachedData() }) { Text("Clear cache") }
+                    OutlinedButton(onClick = viewModel::refreshEverything, enabled = !sync.running) { Text(stringResource(R.string.settings_refresh_everything)) }
+                    OutlinedButton(onClick = { viewModel.clearCachedData() }) { Text(stringResource(R.string.settings_clear_cache)) }
                 }
                 Text(
-                    "Refresh re-downloads ratings and times even if they're cached. Hand-picked HowLongToBeat matches are kept.",
+                    stringResource(R.string.settings_sync_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
-            SectionCard("About") {
+            SectionCard(stringResource(R.string.settings_about)) {
                 Text(
-                    "SteamShelf ${BuildConfig.VERSION_NAME}. Library data from the Steam Web API, compatibility ratings from " +
-                        "ProtonDB and completion times from HowLongToBeat. Not affiliated with Valve, ProtonDB or HowLongToBeat.",
+                    stringResource(R.string.settings_about_text, BuildConfig.VERSION_NAME),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { openUrl(context, "https://www.protondb.com") }) { Text("ProtonDB") }
-                    TextButton(onClick = { openUrl(context, "https://howlongtobeat.com") }) { Text("HowLongToBeat") }
+                    TextButton(onClick = { openUrl(context, "https://www.protondb.com") }) { Text(stringResource(R.string.settings_link_protondb)) }
+                    TextButton(onClick = { openUrl(context, "https://howlongtobeat.com") }) { Text(stringResource(R.string.settings_link_hltb)) }
                 }
             }
         }
@@ -202,30 +211,30 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
                 editingKey = false
                 viewModel.clearKeyError()
             },
-            title = { Text("New API key") },
+            title = { Text(stringResource(R.string.settings_new_key_title)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = key,
                         onValueChange = { key = it },
-                        label = { Text("Steam Web API key") },
+                        label = { Text(stringResource(R.string.settings_api_key)) },
                         singleLine = true,
                         isError = keyError != null,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    keyError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                    TextButton(onClick = { openUrl(context, "https://steamcommunity.com/dev/apikey") }) { Text("Open the Steam key page") }
+                    keyError?.let { Text(it.resolve(res), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    TextButton(onClick = { openUrl(context, "https://steamcommunity.com/dev/apikey") }) { Text(stringResource(R.string.settings_open_key_page)) }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.updateApiKey(key) { editingKey = false } }) { Text("Save") }
+                TextButton(onClick = { viewModel.updateApiKey(key) { editingKey = false } }) { Text(stringResource(R.string.save)) }
             },
             dismissButton = {
                 TextButton(onClick = {
                     editingKey = false
                     viewModel.clearKeyError()
-                }) { Text("Cancel") }
+                }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }
@@ -233,15 +242,15 @@ fun SettingsScreen(viewModel: SettingsViewModel, onBack: () -> Unit) {
     if (confirmSignOut) {
         AlertDialog(
             onDismissRequest = { confirmSignOut = false },
-            title = { Text("Sign out?") },
-            text = { Text("This removes your API key and all cached library data from this device.") },
+            title = { Text(stringResource(R.string.settings_sign_out_title)) },
+            text = { Text(stringResource(R.string.settings_sign_out_message)) },
             confirmButton = {
                 TextButton(onClick = {
                     confirmSignOut = false
                     viewModel.signOut()
-                }) { Text("Sign out", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.settings_sign_out), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = { confirmSignOut = false }) { Text(stringResource(R.string.cancel)) } },
         )
     }
 }

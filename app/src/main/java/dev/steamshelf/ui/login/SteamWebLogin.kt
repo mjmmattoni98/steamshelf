@@ -25,9 +25,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import dev.steamshelf.R
 import dev.steamshelf.data.steam.SteamOpenId
 
 /**
@@ -46,9 +48,9 @@ fun SteamWebLoginDialog(onCallback: (String) -> Unit, onDismiss: () -> Unit) {
         Surface(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize()) {
                 TopAppBar(
-                    title = { Text("Sign in through Steam") },
+                    title = { Text(stringResource(R.string.login_sign_in_with_steam)) },
                     navigationIcon = {
-                        IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close") }
+                        IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close)) }
                     },
                 )
                 if (progress in 1..99) {

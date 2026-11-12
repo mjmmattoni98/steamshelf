@@ -1,5 +1,6 @@
 package dev.steamshelf.ui.detail
 
+import android.content.res.Resources
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,10 +21,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -38,18 +42,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.steamshelf.data.hltb.HltbApi
-import dev.steamshelf.data.hltb.HltbMatcher
+import dev.steamshelf.R
 import dev.steamshelf.data.protondb.ProtonDbApi
 import dev.steamshelf.model.DeckCompat
 import dev.steamshelf.model.FULL_CONTROLLER_CATEGORY
 import dev.steamshelf.model.GameItem
 import dev.steamshelf.model.PARTIAL_CONTROLLER_CATEGORY
+import dev.steamshelf.model.PlayStatus
 import dev.steamshelf.ui.common.DeckPill
 import dev.steamshelf.ui.common.Palette
 import dev.steamshelf.ui.common.Pill
@@ -60,8 +68,8 @@ import dev.steamshelf.ui.common.SteamImage
 import dev.steamshelf.ui.common.formatCount
 import dev.steamshelf.ui.common.formatDate
 import dev.steamshelf.ui.common.formatHours
-import dev.steamshelf.ui.common.formatMinutes
 import dev.steamshelf.ui.common.formatSeconds
+import dev.steamshelf.ui.common.labelRes
 import dev.steamshelf.ui.common.openUrl
 import dev.steamshelf.ui.common.shortRelativeDate
 import kotlin.math.roundToInt
@@ -80,7 +88,7 @@ fun GameDetailScreen(viewModel: GameDetailViewModel, onBack: () -> Unit) {
             TopAppBar(
                 title = { Text(item?.name.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back)) }
                 },
             )
         },
@@ -105,10 +113,14 @@ fun GameDetailScreen(viewModel: GameDetailViewModel, onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Header(game)
-            PlaytimeCard(game)
-            HltbCard(game, loading, onChangeMatch = viewModel::openMatchDialog, onOpen = { id ->
-                openUrl(context, HltbApi.pageUrl(id))
-            })
+            PlaytimeCard(game, onSetStatus = viewModel::setStatus)
+            HltbCard(
+                game,
+                loading,
+                onChangeMatch = viewModel::openMatchDialog,
+                onConfirmMatch = viewModel::confirmMatch,
+                onOpen = { id -> openUrl(context, HltbApi.pageUrl(id)) },
+            )
             ProtonCard(game, loading, onOpen = { openUrl(context, ProtonDbApi.pageUrl(game.appId)) })
             StoreCard(game, tagNames)
             Links(
@@ -154,14 +166,14 @@ private fun Header(game: GameItem) {
             Text(byline, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            ProtonPill(game.protonTier, linuxNative = false, prefix = "ProtonDB ")
-            if (game.linuxNative) ProtonPill(null, linuxNative = true, prefix = "Linux ")
+            ProtonPill(game.protonTier, linuxNative = false, labelFormat = R.string.proton_pill_protondb)
+            if (game.linuxNative) ProtonPill(null, linuxNative = true, labelFormat = R.string.proton_pill_linux)
             DeckPill(game.deck)
             val store = game.store
             val reviewLabel = store?.reviewLabel
             if (store != null && reviewLabel != null && (store.reviewCount ?: 0) > 0) {
                 Pill(
-                    "$reviewLabel · ${store.reviewPercent ?: 0}%",
+                    stringResource(R.string.store_review_pill, reviewLabel, store.reviewPercent ?: 0),
                     MaterialTheme.colorScheme.surfaceContainerHighest,
                     MaterialTheme.colorScheme.onSurface,
                 )
@@ -170,18 +182,20 @@ private fun Header(game: GameItem) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun PlaytimeCard(game: GameItem) {
-    SectionCard("Your playtime") {
+private fun PlaytimeCard(game: GameItem, onSetStatus: (PlayStatus?) -> Unit) {
+    val res = LocalResources.current
+    SectionCard(stringResource(R.string.playtime_title)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatTile(formatMinutes(game.game.playtimeForever).replace("Never played", "0 h"), "Total", Modifier.weight(1f))
-            StatTile(formatHours(game.game.playtime2Weeks / 60.0), "Last 2 weeks", Modifier.weight(1f))
-            StatTile(shortRelativeDate(game.game.lastPlayed), "Last played", Modifier.weight(1f))
+            StatTile(formatHours(res, game.playtimeHours), stringResource(R.string.playtime_total), Modifier.weight(1f))
+            StatTile(formatHours(res, game.game.playtime2Weeks / 60.0), stringResource(R.string.playtime_two_weeks), Modifier.weight(1f))
+            StatTile(shortRelativeDate(res, game.game.lastPlayed), stringResource(R.string.playtime_last_played), Modifier.weight(1f))
         }
         if (game.game.playtimeDeck > 0 || game.game.playtimeLinux > 0) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatTile(formatHours(game.game.playtimeDeck / 60.0), "On Steam Deck", Modifier.weight(1f))
-                StatTile(formatHours(game.game.playtimeLinux / 60.0), "On Linux", Modifier.weight(1f))
+                StatTile(formatHours(res, game.game.playtimeDeck / 60.0), stringResource(R.string.playtime_deck), Modifier.weight(1f))
+                StatTile(formatHours(res, game.game.playtimeLinux / 60.0), stringResource(R.string.playtime_linux), Modifier.weight(1f))
             }
         }
         val progress = game.progress
@@ -198,35 +212,73 @@ private fun PlaytimeCard(game: GameItem) {
                 )
                 val remaining = game.remainingHours ?: 0.0
                 Text(
-                    if (remaining <= 0.0) "You've played longer than a typical main-story run (${formatHours(beat)})."
-                    else "${(progress * 100).roundToInt()}% of a typical ${formatHours(beat)} run · about ${formatHours(remaining)} to go",
+                    when {
+                        game.status == PlayStatus.FINISHED -> stringResource(R.string.progress_marked_finished)
+                        game.dropped -> stringResource(R.string.progress_marked_dropped)
+                        remaining <= 0.0 -> stringResource(R.string.progress_past_main_story, formatHours(res, beat))
+                        else -> stringResource(
+                            R.string.progress_percent,
+                            (progress * 100).roundToInt(),
+                            formatHours(res, beat),
+                            formatHours(res, remaining),
+                        )
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
+        HorizontalDivider()
+        Text(stringResource(R.string.status_title), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(null, PlayStatus.FINISHED, PlayStatus.DROPPED, PlayStatus.HIDDEN).forEach { option ->
+                FilterChip(
+                    selected = game.status == option,
+                    onClick = { onSetStatus(option) },
+                    label = { Text(stringResource(option?.labelRes() ?: R.string.status_automatic)) },
+                )
+            }
+        }
+        Text(
+            stringResource(R.string.status_explanation),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun HltbCard(game: GameItem, loading: Boolean, onChangeMatch: () -> Unit, onOpen: (Int) -> Unit) {
+private fun HltbCard(
+    game: GameItem,
+    loading: Boolean,
+    onChangeMatch: () -> Unit,
+    onConfirmMatch: () -> Unit,
+    onOpen: (Int) -> Unit,
+) {
     val info = game.hltb
-    SectionCard("HowLongToBeat") {
+    val res = LocalResources.current
+    SectionCard(stringResource(R.string.hltb_title)) {
         when {
-            info == null && loading -> LoadingRow("Searching HowLongToBeat…")
-            info == null -> Text("Not fetched yet. Pull to refresh the library, or search manually.", style = MaterialTheme.typography.bodyMedium)
+            info == null && loading -> LoadingRow(stringResource(R.string.hltb_searching))
+            info == null -> Text(stringResource(R.string.hltb_not_fetched), style = MaterialTheme.typography.bodyMedium)
             info.hltbId == null -> Text(
-                if (info.manual) "Marked as not on HowLongToBeat." else "No match found on HowLongToBeat.",
+                stringResource(if (info.manual) R.string.hltb_marked_missing else R.string.hltb_no_match),
                 style = MaterialTheme.typography.bodyMedium,
             )
             else -> {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatTile(formatSeconds(info.mainSeconds) ?: "–", "Main story", Modifier.weight(1f), polled(info.mainCount))
-                    StatTile(formatSeconds(info.plusSeconds) ?: "–", "Main + extras", Modifier.weight(1f), polled(info.plusCount))
-                    StatTile(formatSeconds(info.completionistSeconds) ?: "–", "Completionist", Modifier.weight(1f), polled(info.completionistCount))
+                    StatTile(formatSeconds(res, info.mainSeconds) ?: "–", stringResource(R.string.hltb_main), Modifier.weight(1f), polled(res, info.mainCount))
+                    StatTile(formatSeconds(res, info.plusSeconds) ?: "–", stringResource(R.string.hltb_main_extras), Modifier.weight(1f), polled(res, info.plusCount))
+                    StatTile(
+                        formatSeconds(res, info.completionistSeconds) ?: "–",
+                        stringResource(R.string.hltb_completionist),
+                        Modifier.weight(1f),
+                        polled(res, info.completionistCount),
+                    )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    val fuzzy = !info.manual && info.similarity < HltbMatcher.CONFIDENT_SIMILARITY
+                    val fuzzy = info.needsReview
                     if (fuzzy) {
                         Icon(
                             Icons.Default.Warning,
@@ -235,12 +287,18 @@ private fun HltbCard(game: GameItem, loading: Boolean, onChangeMatch: () -> Unit
                             modifier = Modifier.size(16.dp),
                         )
                     }
+                    val name = info.name.orEmpty().let {
+                        if (info.releaseYear > 0) stringResource(R.string.hltb_name_with_year, it, info.releaseYear) else it
+                    }
                     Text(
-                        buildString {
-                            append(if (info.manual) "Matched by you: " else if (fuzzy) "Possible match: " else "Matched: ")
-                            append(info.name.orEmpty())
-                            if (info.releaseYear > 0) append(" (${info.releaseYear})")
-                        },
+                        stringResource(
+                            when {
+                                info.manual -> R.string.hltb_matched_manual
+                                fuzzy -> R.string.hltb_matched_possible
+                                else -> R.string.hltb_matched
+                            },
+                            name,
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f),
@@ -248,15 +306,22 @@ private fun HltbCard(game: GameItem, loading: Boolean, onChangeMatch: () -> Unit
                 }
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (info?.needsReview == true) {
+                OutlinedButton(onClick = onConfirmMatch) {
+                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.size(6.dp))
+                    Text(stringResource(R.string.hltb_confirm_match))
+                }
+            }
             OutlinedButton(onClick = onChangeMatch) {
                 Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.size(6.dp))
-                Text(if (info?.hltbId != null) "Wrong game?" else "Search HLTB")
+                Text(stringResource(if (info?.hltbId != null) R.string.hltb_wrong_game else R.string.hltb_search))
             }
             info?.hltbId?.let { id ->
                 TextButton(onClick = { onOpen(id) }) {
-                    Text("Open on HLTB")
+                    Text(stringResource(R.string.hltb_open))
                     Spacer(Modifier.size(4.dp))
                     Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
                 }
@@ -265,32 +330,33 @@ private fun HltbCard(game: GameItem, loading: Boolean, onChangeMatch: () -> Unit
     }
 }
 
-private fun polled(count: Int): String? = count.takeIf { it > 0 }?.let { "${formatCount(it)} polled" }
+private fun polled(res: Resources, count: Int): String? =
+    count.takeIf { it > 0 }?.let { res.getString(R.string.hltb_polled, formatCount(it)) }
 
 @Composable
 private fun ProtonCard(game: GameItem, loading: Boolean, onOpen: () -> Unit) {
     val info = game.proton
     val tier = info?.tier
-    SectionCard("ProtonDB") {
+    SectionCard(stringResource(R.string.proton_title)) {
         when {
-            info == null && loading -> LoadingRow("Loading ProtonDB rating…")
+            info == null && loading -> LoadingRow(stringResource(R.string.proton_loading))
             info == null || tier == null -> Text(
-                if (info == null) "Not fetched yet." else "No ProtonDB reports for this game yet.",
+                stringResource(if (info == null) R.string.proton_not_fetched else R.string.proton_no_reports),
                 style = MaterialTheme.typography.bodyMedium,
             )
             else -> {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     val (bg, fg) = Palette.proton(tier)
-                    Pill(tier.label.uppercase(), bg, fg)
+                    Pill(stringResource(tier.labelRes()).uppercase(LocalConfiguration.current.locales[0]), bg, fg)
                     Text(
-                        "${formatCount(info.total)} reports" + (info.confidence?.let { " · $it confidence" } ?: ""),
+                        info.confidence?.let { stringResource(R.string.proton_reports_confidence, formatCount(info.total), it) }
+                            ?: stringResource(R.string.proton_reports, formatCount(info.total)),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
-                val extra = listOfNotNull(
-                    info.trendingTier?.let { "Trending: ${it.label}" },
-                    info.bestReportedTier?.let { "Best reported: ${it.label}" },
-                ).joinToString(" · ")
+                val trending = info.trendingTier?.let { stringResource(R.string.proton_trending, stringResource(it.labelRes())) }
+                val best = info.bestReportedTier?.let { stringResource(R.string.proton_best_reported, stringResource(it.labelRes())) }
+                val extra = listOfNotNull(trending, best).joinToString(" · ")
                 if (extra.isNotEmpty()) {
                     Text(extra, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -298,13 +364,13 @@ private fun ProtonCard(game: GameItem, loading: Boolean, onOpen: () -> Unit) {
         }
         if (game.linuxNative) {
             Text(
-                "This game has a native Linux version.",
+                stringResource(R.string.proton_native_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = Palette.nativeLinux.first,
             )
         }
         TextButton(onClick = onOpen) {
-            Text("Open on ProtonDB")
+            Text(stringResource(R.string.proton_open))
             Spacer(Modifier.size(4.dp))
             Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
         }
@@ -312,19 +378,19 @@ private fun ProtonCard(game: GameItem, loading: Boolean, onOpen: () -> Unit) {
 }
 
 private val PLAYER_CATEGORY_NAMES = mapOf(
-    2 to "Single-player",
-    1 to "Multiplayer",
-    9 to "Co-op",
-    38 to "Online co-op",
-    48 to "LAN co-op",
-    39 to "Split-screen co-op",
-    24 to "Shared/split screen",
-    49 to "PvP",
-    36 to "Online PvP",
-    47 to "LAN PvP",
-    37 to "Split-screen PvP",
-    20 to "MMO",
-    27 to "Cross-platform multiplayer",
+    2 to R.string.player_category_single,
+    1 to R.string.player_category_multiplayer,
+    9 to R.string.player_category_coop,
+    38 to R.string.player_category_online_coop,
+    48 to R.string.player_category_lan_coop,
+    39 to R.string.player_category_split_coop,
+    24 to R.string.player_category_shared_screen,
+    49 to R.string.player_category_pvp,
+    36 to R.string.player_category_online_pvp,
+    47 to R.string.player_category_lan_pvp,
+    37 to R.string.player_category_split_pvp,
+    20 to R.string.player_category_mmo,
+    27 to R.string.player_category_cross_platform,
 )
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -332,26 +398,30 @@ private val PLAYER_CATEGORY_NAMES = mapOf(
 private fun StoreCard(game: GameItem, tagNames: Map<Int, String>) {
     val store = game.store ?: return
     if (!store.found) return
-    SectionCard("Steam") {
+    val res = LocalResources.current
+    SectionCard(stringResource(R.string.store_title)) {
         val platforms = listOfNotNull(
-            "Windows".takeIf { store.windows },
-            "macOS".takeIf { store.mac },
-            "Linux".takeIf { store.linux },
-        ).joinToString(", ")
-        val players = store.playerCategoryIds.mapNotNull { PLAYER_CATEGORY_NAMES[it] }.joinToString(", ")
+            R.string.platform_windows.takeIf { store.windows },
+            R.string.platform_mac.takeIf { store.mac },
+            R.string.platform_linux.takeIf { store.linux },
+        ).joinToString(", ") { res.getString(it) }
+        val players = store.playerCategoryIds.mapNotNull { PLAYER_CATEGORY_NAMES[it] }.joinToString(", ") { res.getString(it) }
         val controller = when {
-            FULL_CONTROLLER_CATEGORY in store.controllerCategoryIds -> "Full support"
-            PARTIAL_CONTROLLER_CATEGORY in store.controllerCategoryIds -> "Partial support"
+            FULL_CONTROLLER_CATEGORY in store.controllerCategoryIds -> stringResource(R.string.controller_full)
+            PARTIAL_CONTROLLER_CATEGORY in store.controllerCategoryIds -> stringResource(R.string.controller_partial)
             else -> null
         }
-        InfoLine("Steam Deck", game.deck.label)
-        if (platforms.isNotEmpty()) InfoLine("Platforms", platforms)
-        if (players.isNotEmpty()) InfoLine("Players", players)
-        controller?.let { InfoLine("Controller", it) }
+        InfoLine(stringResource(R.string.store_deck), stringResource(game.deck.labelRes()))
+        if (platforms.isNotEmpty()) InfoLine(stringResource(R.string.store_platforms), platforms)
+        if (players.isNotEmpty()) InfoLine(stringResource(R.string.store_players), players)
+        controller?.let { InfoLine(stringResource(R.string.store_controller), it) }
         if (store.reviewCount != null && store.reviewCount > 0) {
-            InfoLine("Reviews", "${store.reviewLabel ?: ""} (${store.reviewPercent ?: 0}% of ${formatCount(store.reviewCount)})")
+            InfoLine(
+                stringResource(R.string.store_reviews),
+                stringResource(R.string.store_reviews_value, store.reviewLabel.orEmpty(), store.reviewPercent ?: 0, formatCount(store.reviewCount)).trim(),
+            )
         }
-        if (store.publishers.isNotEmpty()) InfoLine("Publisher", store.publishers.joinToString(", "))
+        if (store.publishers.isNotEmpty()) InfoLine(stringResource(R.string.store_publisher), store.publishers.joinToString(", "))
 
         val tags = store.tagIds.mapNotNull { tagNames[it] }
         if (tags.isNotEmpty()) {
@@ -391,7 +461,7 @@ private fun LoadingRow(text: String) {
 @Composable
 private fun Links(onStore: () -> Unit, onSteamDb: () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        OutlinedButton(onClick = onStore, modifier = Modifier.weight(1f)) { Text("Steam store") }
-        OutlinedButton(onClick = onSteamDb, modifier = Modifier.weight(1f)) { Text("SteamDB") }
+        OutlinedButton(onClick = onStore, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.link_steam_store)) }
+        OutlinedButton(onClick = onSteamDb, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.link_steamdb)) }
     }
 }

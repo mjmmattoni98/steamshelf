@@ -1,5 +1,6 @@
 package dev.steamshelf.ui.library
 
+import android.content.res.Resources
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,14 +25,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.steamshelf.R
 import dev.steamshelf.model.GameItem
 import dev.steamshelf.model.SortField
 import dev.steamshelf.ui.common.DeckPill
 import dev.steamshelf.ui.common.HltbPill
 import dev.steamshelf.ui.common.ProtonPill
+import dev.steamshelf.ui.common.StatusPill
 import dev.steamshelf.ui.common.SteamImage
 import dev.steamshelf.ui.common.formatHours
 import dev.steamshelf.ui.common.formatMinutes
@@ -68,16 +72,17 @@ fun GameRow(item: GameItem, sortField: SortField, onClick: () -> Unit, modifier:
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    subtitle(item, sortField),
+                    subtitle(LocalResources.current, item, sortField),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    StatusPill(item.status)
                     ProtonPill(item.protonTier, item.linuxNative)
                     DeckPill(item.deck, showLabelPrefix = false)
-                    HltbPill(item.beatHours)
+                    HltbPill(item.beatHours, uncertain = item.hltbNeedsReview)
                 }
                 item.progress?.takeIf { item.game.playtimeForever > 0 }?.let { progress ->
                     LinearProgressIndicator(
@@ -97,14 +102,21 @@ fun GameRow(item: GameItem, sortField: SortField, onClick: () -> Unit, modifier:
 }
 
 /** What the second line shows depends on the sort, so the number you're sorting by is visible. */
-private fun subtitle(item: GameItem, sortField: SortField): String {
-    val played = formatMinutes(item.game.playtimeForever)
+private fun subtitle(res: Resources, item: GameItem, sortField: SortField): String {
+    val played = formatMinutes(res, item.game.playtimeForever)
     return when (sortField) {
-        SortField.LAST_PLAYED -> if (item.game.lastPlayed > 0) "Last played ${relativeDate(item.game.lastPlayed)}" else played
-        SortField.TIME_LEFT -> item.remainingHours?.let { "$played · ${formatHours(it)} left" } ?: played
-        SortField.REVIEWS -> item.store?.reviewPercent?.let { "$played · $it% positive" } ?: played
-        SortField.RELEASE -> item.releaseYear?.let { "$played · $it" } ?: played
-        else -> if (item.game.playtime2Weeks > 0) "$played · ${formatHours(item.game.playtime2Weeks / 60.0)} last 2 weeks" else played
+        SortField.LAST_PLAYED ->
+            if (item.game.lastPlayed > 0) res.getString(R.string.subtitle_last_played, relativeDate(res, item.game.lastPlayed))
+            else played
+        SortField.TIME_LEFT -> item.remainingHours?.let { res.getString(R.string.subtitle_left, played, formatHours(res, it)) } ?: played
+        SortField.REVIEWS -> item.store?.reviewPercent?.let { res.getString(R.string.subtitle_reviews, played, it) } ?: played
+        SortField.RELEASE -> item.releaseYear?.let { res.getString(R.string.joined_with_dot, played, it.toString()) } ?: played
+        else ->
+            if (item.game.playtime2Weeks > 0) {
+                res.getString(R.string.subtitle_recent, played, formatHours(res, item.game.playtime2Weeks / 60.0))
+            } else {
+                played
+            }
     }
 }
 
@@ -134,8 +146,9 @@ fun GameGridCell(item: GameItem, onClick: () -> Unit, modifier: Modifier = Modif
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
+                    StatusPill(item.status)
                     ProtonPill(item.protonTier, item.linuxNative)
-                    HltbPill(item.beatHours)
+                    HltbPill(item.beatHours, uncertain = item.hltbNeedsReview)
                     DeckPill(item.deck, showLabelPrefix = false)
                 }
             }

@@ -31,14 +31,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import dev.steamshelf.R
 import dev.steamshelf.model.DeckFilter
 import dev.steamshelf.model.LengthFilter
 import dev.steamshelf.model.LibraryFilter
 import dev.steamshelf.model.PlayStateFilter
 import dev.steamshelf.model.PlayerModeFilter
 import dev.steamshelf.model.ProtonFilter
+import dev.steamshelf.ui.common.labelRes
 import dev.steamshelf.ui.common.toggle
 
 private const val COLLAPSED_TAG_COUNT = 24
@@ -68,57 +72,68 @@ fun FilterSheet(
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Filters", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.filters), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = onClear, enabled = filter.activeCount > 0) { Text("Reset all") }
+                TextButton(onClick = onClear, enabled = filter.activeCount > 0) { Text(stringResource(R.string.filters_reset_all)) }
             }
 
-            ChipSection("Play status") {
+            ChipSection(stringResource(R.string.filter_section_play_status)) {
                 PlayStateFilter.entries.forEach { option ->
-                    Chip(option.label, option in filter.playStates) {
+                    Chip(stringResource(option.labelRes()), option in filter.playStates) {
                         onUpdate { it.copy(playStates = it.playStates.toggle(option)) }
                     }
                 }
+                Chip(stringResource(R.string.filter_show_hidden), filter.showHidden) {
+                    onUpdate { it.copy(showHidden = !it.showHidden) }
+                }
             }
 
-            ChipSection("ProtonDB & Linux", "How well it runs on Linux / Steam Deck via Proton") {
+            ChipSection(stringResource(R.string.filter_section_proton), stringResource(R.string.filter_section_proton_hint)) {
                 ProtonFilter.entries.forEach { option ->
-                    Chip(option.label, option in filter.proton) {
+                    Chip(stringResource(option.labelRes()), option in filter.proton) {
                         onUpdate { it.copy(proton = it.proton.toggle(option)) }
                     }
                 }
             }
 
-            ChipSection("Steam Deck") {
+            ChipSection(stringResource(R.string.filter_section_deck)) {
                 DeckFilter.entries.forEach { option ->
-                    Chip(option.label, option in filter.deck) {
+                    Chip(stringResource(option.labelRes()), option in filter.deck) {
                         onUpdate { it.copy(deck = it.deck.toggle(option)) }
                     }
                 }
             }
 
-            ChipSection("Time to beat", "HowLongToBeat main story") {
+            ChipSection(stringResource(R.string.filter_section_length), stringResource(R.string.filter_section_length_hint)) {
                 LengthFilter.entries.forEach { option ->
-                    Chip(option.label, option in filter.length) {
+                    Chip(stringResource(option.labelRes()), option in filter.length) {
                         onUpdate { it.copy(length = it.length.toggle(option)) }
                     }
                 }
+                Chip(stringResource(R.string.filter_hltb_needs_review), filter.hltbNeedsReview) {
+                    onUpdate { it.copy(hltbNeedsReview = !it.hltbNeedsReview) }
+                }
             }
 
-            ChipSection("Players") {
+            ChipSection(stringResource(R.string.filter_section_players)) {
                 PlayerModeFilter.entries.forEach { option ->
-                    Chip(option.label, option in filter.playerModes) {
+                    Chip(stringResource(option.labelRes()), option in filter.playerModes) {
                         onUpdate { it.copy(playerModes = it.playerModes.toggle(option)) }
                     }
                 }
-                Chip("Full controller support", filter.fullControllerSupport) {
+                Chip(stringResource(R.string.filter_full_controller), filter.fullControllerSupport) {
                     onUpdate { it.copy(fullControllerSupport = !it.fullControllerSupport) }
                 }
             }
 
-            ChipSection("Steam reviews") {
-                listOf(0 to "Any", 70 to "70%+ positive", 80 to "80%+", 90 to "90%+").forEach { (value, label) ->
-                    Chip(label, filter.minReviewPercent == value) {
+            ChipSection(stringResource(R.string.filter_section_reviews)) {
+                listOf(
+                    0 to R.string.filter_reviews_any,
+                    70 to R.string.filter_reviews_70,
+                    80 to R.string.filter_reviews_80,
+                    90 to R.string.filter_reviews_90,
+                ).forEach { (value, label) ->
+                    Chip(stringResource(label), filter.minReviewPercent == value) {
                         onUpdate { it.copy(minReviewPercent = value) }
                     }
                 }
@@ -130,9 +145,9 @@ fun FilterSheet(
                 val selected = matching.filter { it.id in filter.tags }
                 val rest = matching.filterNot { it.id in filter.tags }
                 val visible = selected + if (showAllTags || needle.isNotEmpty()) rest else rest.take(COLLAPSED_TAG_COUNT)
-                ChipSection("Tags", "Games must have every selected tag") {
+                ChipSection(stringResource(R.string.filter_section_tags), stringResource(R.string.filter_section_tags_hint)) {
                     visible.forEach { tag ->
-                        Chip("${tag.name} · ${tag.count}", tag.id in filter.tags) {
+                        Chip(stringResource(R.string.filter_tag_with_count, tag.name, tag.count), tag.id in filter.tags) {
                             onUpdate { it.copy(tags = it.tags.toggle(tag.id)) }
                         }
                     }
@@ -141,13 +156,16 @@ fun FilterSheet(
                     OutlinedTextField(
                         value = tagQuery,
                         onValueChange = { tagQuery = it },
-                        label = { Text("Search tags") },
+                        label = { Text(stringResource(R.string.filter_search_tags)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     if (needle.isEmpty()) {
                         TextButton(onClick = { showAllTags = !showAllTags }) {
-                            Text(if (showAllTags) "Show fewer tags" else "Show all ${tags.size} tags")
+                            Text(
+                                if (showAllTags) stringResource(R.string.filter_show_fewer_tags)
+                                else pluralStringResource(R.plurals.filter_show_all_tags, tags.size, tags.size),
+                            )
                         }
                     }
                 }
@@ -156,7 +174,7 @@ fun FilterSheet(
             Button(onClick = onDismiss, modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)) {
-                Text(if (resultCount == 1) "Show 1 game" else "Show $resultCount games")
+                Text(pluralStringResource(R.plurals.filter_show_results, resultCount, resultCount))
             }
         }
     }

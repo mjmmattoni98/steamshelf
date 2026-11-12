@@ -1,0 +1,46 @@
+{
+  "response": {
+    "game_count": 3,
+    "games": [
+      {
+        "appid": 367520,
+        "name": "Hollow Knight",
+        "playtime_forever": 2710,
+        "img_icon_url": "6b5f0e0e2a8d0b6d6c5b1f9e5a1f3a0d4e0c9b1a",
+        "has_community_visible_stats": true,
+        "playtime_windows_forever": 120,
+        "playtime_mac_forever": 0,
+        "playtime_linux_forever": 2590,
+        "playtime_deck_forever": 1800,
+        "rtime_last_played": 1718000000,
+        "playtime_disconnected": 0
+      },
+      {
+        "appid": 620,
+        "name": "Portal 2",
+        "playtime_2weeks": 95,
+        "playtime_forever": 610,
+        "img_icon_url": "2e478fc6874d06ae5baf0d147f6f21203291aa02",
+        "has_community_visible_stats": true,
+        "playtime_windows_forever": 610,
+        "playtime_mac_forever": 0,
+        "playtime_linux_forever": 0,
+        "playtime_deck_forever": 0,
+        "rtime_last_played": 1731000000,
+        "playtime_disconnected": 0,
+        "content_descriptorids": [2, 5]
+      },
+      {
+        "appid": 1245620,
+        "playtime_forever": 0,
+        "img_icon_url": "",
+        "playtime_windows_forever": 0,
+        "playtime_mac_forever": 0,
+        "playtime_linux_forever": 0,
+        "playtime_deck_forever": 0,
+        "rtime_last_played": 0,
+        "playtime_disconnected": 0
+      }
+    ]
+  }
+}

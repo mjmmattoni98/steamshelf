@@ -7,6 +7,7 @@ import dev.steamshelf.data.SettingsStore
 import dev.steamshelf.data.hltb.HltbApi
 import dev.steamshelf.data.protondb.ProtonDbApi
 import dev.steamshelf.data.steam.SteamApi
+import dev.steamshelf.sync.WorkManagerSyncLauncher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -44,5 +45,6 @@ class AppContainer(context: Context) {
         cache = CacheStore(File(context.filesDir, "library-cache"), json),
         settings = settings,
         scope = appScope,
+        launcher = WorkManagerSyncLauncher(context.applicationContext),
     )
 }

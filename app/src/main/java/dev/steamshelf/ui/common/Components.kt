@@ -12,6 +12,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SportsEsports
@@ -31,12 +34,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.annotation.StringRes
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import dev.steamshelf.R
 import dev.steamshelf.model.DeckCompat
+import dev.steamshelf.model.PlayStatus
 import dev.steamshelf.model.ProtonTier
 
 /** Loads the first image that exists from [urls] (Steam's newer games use hashed asset paths). */
@@ -75,6 +83,7 @@ fun Pill(
     content: Color,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
+    iconDescription: String? = null,
 ) {
     Row(
         modifier
@@ -84,7 +93,7 @@ fun Pill(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        if (icon != null) Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(12.dp))
+        if (icon != null) Icon(icon, contentDescription = iconDescription, tint = content, modifier = Modifier.size(12.dp))
         Text(
             text,
             color = content,
@@ -97,6 +106,10 @@ fun Pill(
 
 object Palette {
     val nativeLinux = Color(0xFF3FA34D) to Color.White
+
+    /** Same amber as "Deck Playable": readable on light and dark surfaces and on artwork. */
+    val warning = Color(0xFFFFC82C) to Color(0xFF2B2100)
+    val finished = Color(0xFF59BF40) to Color(0xFF0F2A06)
 
     fun proton(tier: ProtonTier): Pair<Color, Color> = when (tier) {
         ProtonTier.PLATINUM -> Color(0xFFB4C7DC) to Color(0xFF1B2330)
@@ -122,15 +135,21 @@ object Palette {
     }
 }
 
+/** ProtonDB tier or native Linux; [labelFormat] wraps the label, e.g. "ProtonDB %1$s". */
 @Composable
-fun ProtonPill(tier: ProtonTier?, linuxNative: Boolean, modifier: Modifier = Modifier, prefix: String = "") {
+fun ProtonPill(tier: ProtonTier?, linuxNative: Boolean, modifier: Modifier = Modifier, @StringRes labelFormat: Int? = null) {
+    @Composable
+    fun label(@StringRes text: Int): String {
+        val plain = stringResource(text)
+        return if (labelFormat == null) plain else stringResource(labelFormat, plain)
+    }
     when {
         linuxNative -> Pill(
-            "${prefix}Native", Palette.nativeLinux.first, Palette.nativeLinux.second, modifier, Icons.Default.Terminal,
+            label(R.string.proton_native), Palette.nativeLinux.first, Palette.nativeLinux.second, modifier, Icons.Default.Terminal,
         )
         tier != null -> {
             val (bg, fg) = Palette.proton(tier)
-            Pill("$prefix${tier.label}", bg, fg, modifier)
+            Pill(label(tier.labelRes()), bg, fg, modifier)
         }
     }
 }
@@ -139,8 +158,9 @@ fun ProtonPill(tier: ProtonTier?, linuxNative: Boolean, modifier: Modifier = Mod
 fun DeckPill(compat: DeckCompat, modifier: Modifier = Modifier, showLabelPrefix: Boolean = true) {
     if (compat == DeckCompat.UNKNOWN) return
     val (bg, fg) = Palette.deck(compat)
+    val label = stringResource(compat.labelRes())
     Pill(
-        if (showLabelPrefix) "Deck ${compat.label}" else compat.label,
+        if (showLabelPrefix) stringResource(R.string.deck_pill, label) else label,
         bg,
         fg,
         modifier,
@@ -148,16 +168,53 @@ fun DeckPill(compat: DeckCompat, modifier: Modifier = Modifier, showLabelPrefix:
     )
 }
 
+/** HowLongToBeat time; [uncertain] marks an automatic match that is only a fuzzy fit. */
 @Composable
-fun HltbPill(hours: Double?, modifier: Modifier = Modifier) {
+fun HltbPill(hours: Double?, modifier: Modifier = Modifier, uncertain: Boolean = false) {
     if (hours == null) return
-    Pill(
-        formatHours(hours),
-        MaterialTheme.colorScheme.surfaceContainerHighest,
-        MaterialTheme.colorScheme.onSurface,
-        modifier,
-        Icons.Default.Schedule,
-    )
+    if (uncertain) {
+        Pill(
+            formatHours(LocalResources.current, hours),
+            Palette.warning.first,
+            Palette.warning.second,
+            modifier,
+            Icons.Default.Warning,
+            iconDescription = stringResource(R.string.hltb_uncertain_badge),
+        )
+    } else {
+        Pill(
+            formatHours(LocalResources.current, hours),
+            MaterialTheme.colorScheme.surfaceContainerHighest,
+            MaterialTheme.colorScheme.onSurface,
+            modifier,
+            Icons.Default.Schedule,
+        )
+    }
+}
+
+/** The user's own status for a game; nothing for automatic. */
+@Composable
+fun StatusPill(status: PlayStatus?, modifier: Modifier = Modifier) {
+    when (status) {
+        null -> Unit
+        PlayStatus.FINISHED -> Pill(
+            stringResource(status.labelRes()), Palette.finished.first, Palette.finished.second, modifier, Icons.Default.Flag,
+        )
+        PlayStatus.DROPPED -> Pill(
+            stringResource(status.labelRes()),
+            MaterialTheme.colorScheme.surfaceContainerHighest,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier,
+            Icons.Default.Block,
+        )
+        PlayStatus.HIDDEN -> Pill(
+            stringResource(status.labelRes()),
+            MaterialTheme.colorScheme.surfaceContainerHighest,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier,
+            Icons.Default.VisibilityOff,
+        )
+    }
 }
 
 @Composable

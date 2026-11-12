@@ -1,6 +1,7 @@
 package dev.steamshelf.data
 
 import android.content.Context
+import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -24,8 +25,8 @@ data class SyncPrefs(
 )
 
 /** Account, sync options and library view preferences, persisted with DataStore. */
-class SettingsStore(context: Context, private val json: Json) {
-    private val store = context.applicationContext.dataStore
+class SettingsStore(private val store: DataStore<Preferences>, private val json: Json) {
+    constructor(context: Context, json: Json) : this(context.applicationContext.dataStore, json)
 
     private object Keys {
         val STEAM_ID = stringPreferencesKey("steam_id")

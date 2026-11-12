@@ -1,5 +1,6 @@
 package dev.steamshelf.data.hltb
 
+import dev.steamshelf.model.HltbInfo
 import dev.steamshelf.model.TextNormalizer
 import kotlin.math.abs
 import kotlin.math.max
@@ -14,7 +15,7 @@ object HltbMatcher {
     private const val SUBTITLE_MATCH = 0.75
 
     /** Matches below this are shown as "fuzzy" so the user can double-check them. */
-    const val CONFIDENT_SIMILARITY = 0.85
+    const val CONFIDENT_SIMILARITY = HltbInfo.CONFIDENT_SIMILARITY
 
     private val trademarks = Regex("[™®©]")
     private val editionSuffix = Regex(

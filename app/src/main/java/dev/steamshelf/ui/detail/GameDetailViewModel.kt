@@ -2,11 +2,14 @@ package dev.steamshelf.ui.detail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.steamshelf.R
 import dev.steamshelf.data.LibraryRepository
 import dev.steamshelf.data.hltb.HltbGame
 import dev.steamshelf.data.hltb.HltbMatcher
 import dev.steamshelf.data.hltb.HltbRateLimitedException
 import dev.steamshelf.model.GameItem
+import dev.steamshelf.model.PlayStatus
+import dev.steamshelf.ui.common.UiText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,7 +29,7 @@ data class MatchSearchState(
     val query: String,
     val searching: Boolean = false,
     val results: List<HltbGame> = emptyList(),
-    val error: String? = null,
+    val error: UiText? = null,
 )
 
 class GameDetailViewModel(
@@ -101,9 +104,9 @@ class GameDetailViewModel(
         } catch (e: CancellationException) {
             throw e
         } catch (e: HltbRateLimitedException) {
-            _matchSearch.update { it?.copy(searching = false, error = "HowLongToBeat says too many searches. Wait a minute and try again.") }
+            _matchSearch.update { it?.copy(searching = false, error = UiText.Error(e)) }
         } catch (e: Exception) {
-            _matchSearch.update { it?.copy(searching = false, error = "Search failed: ${e.message ?: "network error"}") }
+            _matchSearch.update { it?.copy(searching = false, error = UiText.Res(R.string.match_search_failed, UiText.Error(e))) }
         }
     }
 
@@ -111,6 +114,11 @@ class GameDetailViewModel(
         repository.setHltbMatch(appId, match)
         closeMatchDialog()
     }
+
+    /** The automatic match is right: stop flagging it and never replace it. */
+    fun confirmMatch() = repository.confirmHltbMatch(appId)
+
+    fun setStatus(status: PlayStatus?) = repository.setPlayStatus(appId, status)
 
     fun pickNoMatch() {
         repository.setNoHltbMatch(appId)

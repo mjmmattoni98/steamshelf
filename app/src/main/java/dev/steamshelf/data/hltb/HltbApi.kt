@@ -60,6 +60,7 @@ class HltbApi(
     baseClient: OkHttpClient,
     private val json: Json,
     initialSearchPath: String = DEFAULT_SEARCH_PATH,
+    private val baseUrl: String = BASE,
 ) {
 
     private val client = baseClient.newBuilder()
@@ -103,7 +104,7 @@ class HltbApi(
 
             val result = client.fetch(
                 Request.Builder()
-                    .url("$BASE$path")
+                    .url("$baseUrl$path")
                     .header("x-auth-token", current.token)
                     .apply {
                         if (current.hpKey != null && current.hpVal != null) {
@@ -136,7 +137,7 @@ class HltbApi(
             return existing
         }
         val body = client.fetchString(
-            Request.Builder().url("$BASE$searchPath/init?t=${System.currentTimeMillis()}").build(),
+            Request.Builder().url("$baseUrl$searchPath/init?t=${System.currentTimeMillis()}").build(),
         )
         val obj = json.parseToJsonElement(body).jsonObject
         val token = obj.string("token") ?: throw IOException("HowLongToBeat didn't return a search token")
@@ -154,11 +155,11 @@ class HltbApi(
             throw IOException("HowLongToBeat's search endpoint is unavailable")
         }
         lastDiscoveryFailure = System.currentTimeMillis()
-        val html = client.fetchString(Request.Builder().url("$BASE/").build())
+        val html = client.fetchString(Request.Builder().url("$baseUrl/").build())
         val scripts = SCRIPT_SRC.findAll(html).map { it.groupValues[1] }.distinct().toList()
         for (src in scripts) {
             val js = runCatching {
-                client.fetchString(Request.Builder().url(if (src.startsWith("http")) src else "$BASE$src").build())
+                client.fetchString(Request.Builder().url(if (src.startsWith("http")) src else "$baseUrl$src").build())
             }.getOrNull() ?: continue
             val found = INIT_CALL.find(js)?.groupValues?.get(1)
             if (found != null) {

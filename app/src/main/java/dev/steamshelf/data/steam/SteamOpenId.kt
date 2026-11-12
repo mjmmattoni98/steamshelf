@@ -34,24 +34,24 @@ object SteamOpenId {
 
     /** Verifies the callback with Steam (check_authentication) and returns the SteamID64. */
     suspend fun verify(client: OkHttpClient, callbackUrl: String): String {
-        val url = callbackUrl.toHttpUrlOrNull() ?: throw SteamApiException("Invalid sign-in response.")
+        val url = callbackUrl.toHttpUrlOrNull() ?: throw SteamApiException(SteamApiException.Reason.SIGN_IN_INVALID, "Invalid sign-in response.")
         val params = url.queryParameterNames
             .filter { it.startsWith("openid.") }
             .associateWith { url.queryParameter(it).orEmpty() }
 
-        if (params["openid.mode"] == "cancel") throw SteamApiException("Sign-in was cancelled.")
+        if (params["openid.mode"] == "cancel") throw SteamApiException(SteamApiException.Reason.SIGN_IN_CANCELLED, "Sign-in was cancelled.")
         if (params["openid.op_endpoint"] != ENDPOINT || params["openid.return_to"]?.startsWith(RETURN_TO) != true) {
-            throw SteamApiException("Unexpected sign-in response.")
+            throw SteamApiException(SteamApiException.Reason.SIGN_IN_UNEXPECTED, "Unexpected sign-in response.")
         }
         val steamId = claimedIdPattern.find(params["openid.claimed_id"].orEmpty())?.groupValues?.get(1)
-            ?: throw SteamApiException("Steam didn't return a SteamID.")
+            ?: throw SteamApiException(SteamApiException.Reason.SIGN_IN_NO_STEAM_ID, "Steam didn't return a SteamID.")
 
         val form = FormBody.Builder().apply {
             params.forEach { (key, value) -> add(key, if (key == "openid.mode") "check_authentication" else value) }
         }.build()
         val body = client.fetchString(Request.Builder().url(ENDPOINT).post(form).build())
         if (!body.lines().any { it.trim() == "is_valid:true" }) {
-            throw SteamApiException("Steam couldn't verify the sign-in. Please try again.")
+            throw SteamApiException(SteamApiException.Reason.SIGN_IN_NOT_VERIFIED, "Steam couldn't verify the sign-in. Please try again.")
         }
         return steamId
     }

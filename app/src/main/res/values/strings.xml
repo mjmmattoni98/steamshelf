@@ -1,4 +1,318 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">SteamShelf</string>
+
+    <!-- Common -->
+    <string name="back">Back</string>
+    <string name="close">Close</string>
+    <string name="cancel">Cancel</string>
+    <string name="save">Save</string>
+    <string name="change">Change</string>
+    <string name="clear">Clear</string>
+    <string name="settings_title">Settings</string>
+    <string name="joined_with_dot">%1$s · %2$s</string>
+    <string name="unit_hours">%1$s h</string>
+    <string name="unit_minutes">%1$s min</string>
+    <string name="never_played">Never played</string>
+    <string name="date_never">Never</string>
+    <string name="date_today">Today</string>
+    <string name="date_yesterday">Yesterday</string>
+    <string name="date_days_ago">%1$d d ago</string>
+    <string name="date_weeks_ago">%1$d wk ago</string>
+    <string name="date_months_ago">%1$d mo ago</string>
+    <string name="date_years_ago">%1$d y ago</string>
+
+    <!-- Errors -->
+    <string name="error_steam_no_games">Steam returned no games. Make sure the API key belongs to this account, or set \"Game details\" to Public in your Steam privacy settings.</string>
+    <string name="error_steam_key_rejected">Steam rejected the API key (HTTP %1$s). Check that it\'s correct.</string>
+    <string name="error_steam_rate_limited">Steam is rate limiting requests. Try again in a few minutes.</string>
+    <string name="error_steam_http">Steam API error (HTTP %1$s).</string>
+    <string name="error_steam_profile_not_found">No Steam profile found for %1$s.</string>
+    <string name="error_steam_vanity_not_found">Couldn\'t find a Steam profile called \"%1$s\".</string>
+    <string name="error_sign_in_invalid">Invalid sign-in response.</string>
+    <string name="error_sign_in_cancelled">Sign-in was cancelled.</string>
+    <string name="error_sign_in_unexpected">Unexpected sign-in response.</string>
+    <string name="error_sign_in_no_steam_id">Steam didn\'t return a SteamID.</string>
+    <string name="error_sign_in_not_verified">Steam couldn\'t verify the sign-in. Please try again.</string>
+    <string name="error_hltb_rate_limited">HowLongToBeat says too many searches. Wait a minute and try again.</string>
+    <string name="error_http">The server answered with an error (HTTP %1$d).</string>
+    <string name="error_network">Couldn\'t connect. Check your internet connection.</string>
+    <string name="error_generic">Something went wrong.</string>
+    <string name="error_no_app_for_link">No app can open this link</string>
+    <string name="error_api_key_format">A Steam Web API key is 32 letters and numbers (0–9, A–F).</string>
+
+    <!-- Sync -->
+    <string name="sync_phase_library">Loading your library</string>
+    <string name="sync_phase_store">Fetching store details</string>
+    <string name="sync_phase_protondb">Fetching ProtonDB ratings</string>
+    <string name="sync_phase_hltb">Fetching HowLongToBeat times</string>
+    <string name="sync_starting">Syncing</string>
+    <string name="sync_progress_count">%1$d / %2$d</string>
+    <string name="sync_bar_progress">%1$s · %2$d/%3$d</string>
+    <string name="sync_stop">Stop</string>
+    <string name="sync_stop_description">Stop syncing</string>
+    <string name="sync_channel_name">Library sync</string>
+    <string name="sync_channel_description">Progress while your Steam library, ratings and times are being updated.</string>
+    <string name="sync_error_library_not_refreshed">Couldn\'t refresh your library from Steam, so the saved one is shown. %1$s</string>
+    <string name="sync_error_store_incomplete">Couldn\'t load Steam store details for some games.</string>
+    <plurals name="sync_error_proton_incomplete">
+        <item quantity="one">Couldn\'t load the ProtonDB rating for %1$d game.</item>
+        <item quantity="other">Couldn\'t load ProtonDB ratings for %1$d games.</item>
+    </plurals>
+    <string name="sync_error_hltb_unavailable">HowLongToBeat isn\'t responding right now; times will be fetched on the next sync.</string>
+    <string name="sync_error_failed">Sync failed. %1$s</string>
+
+    <!-- Labels for model values -->
+    <string name="deck_unknown">Unknown</string>
+    <string name="deck_unsupported">Unsupported</string>
+    <string name="deck_playable">Playable</string>
+    <string name="deck_verified">Verified</string>
+    <string name="deck_pill">Deck %1$s</string>
+    <string name="tier_platinum">Platinum</string>
+    <string name="tier_gold">Gold</string>
+    <string name="tier_silver">Silver</string>
+    <string name="tier_bronze">Bronze</string>
+    <string name="tier_borked">Borked</string>
+    <string name="tier_pending">Pending</string>
+    <string name="proton_native">Native</string>
+    <string name="proton_pill_protondb">ProtonDB %1$s</string>
+    <string name="proton_pill_linux">Linux %1$s</string>
+    <string name="play_state_unplayed">Never played</string>
+    <string name="play_state_tried">Played &lt; 2 h</string>
+    <string name="play_state_in_progress">Started, not beaten</string>
+    <string name="play_state_beaten">Past main story</string>
+    <string name="play_state_recent">Played last 2 weeks</string>
+    <string name="proton_filter_native">Native Linux</string>
+    <string name="proton_filter_no_reports">No reports</string>
+    <string name="length_short">Under 5 h</string>
+    <string name="length_medium">5–15 h</string>
+    <string name="length_long">15–40 h</string>
+    <string name="length_very_long">40 h +</string>
+    <string name="length_unknown">No HLTB data</string>
+    <string name="players_single">Single-player</string>
+    <string name="players_coop">Co-op</string>
+    <string name="players_multiplayer">Multiplayer</string>
+    <string name="players_split_screen">Local / split screen</string>
+    <string name="sort_name">Name</string>
+    <string name="sort_playtime">Playtime</string>
+    <string name="sort_last_played">Last played</string>
+    <string name="sort_time_to_beat">Time to beat</string>
+    <string name="sort_time_left">Time left to beat</string>
+    <string name="sort_protondb">ProtonDB rating</string>
+    <string name="sort_reviews">Steam reviews</string>
+    <string name="sort_release">Release date</string>
+
+    <!-- Library -->
+    <string name="library_title">Library</string>
+    <plurals name="library_count">
+        <item quantity="one">%1$s game</item>
+        <item quantity="other">%1$s games</item>
+    </plurals>
+    <plurals name="library_count_filtered">
+        <item quantity="one">%1$s of %2$s game</item>
+        <item quantity="other">%1$s of %2$s games</item>
+    </plurals>
+    <string name="random_pick">Pick a random game</string>
+    <string name="sort">Sort</string>
+    <string name="sort_descending">Descending</string>
+    <string name="sort_ascending">Ascending</string>
+    <string name="switch_layout">Switch layout</string>
+    <string name="library_loading">Loading your library…</string>
+    <string name="library_empty_title">No games yet</string>
+    <string name="library_empty_message">Pull down to load your Steam library.</string>
+    <string name="library_empty_action">Load library</string>
+    <string name="library_no_match_title">No games match</string>
+    <string name="library_no_match_message">Try removing a filter or changing the search.</string>
+    <string name="library_no_match_action">Clear filters</string>
+    <string name="search_hint">Search your library</string>
+    <string name="search_clear">Clear search</string>
+    <string name="filters">Filters</string>
+    <string name="filters_count">Filters · %1$d</string>
+    <string name="quick_in_progress">In progress</string>
+    <string name="quick_linux">Runs great on Linux</string>
+    <string name="quick_deck_verified">Deck Verified</string>
+    <string name="quick_under_15h">Under 15 h</string>
+    <string name="quick_recent">Played recently</string>
+    <string name="quick_check_hltb">Check HLTB matches · %1$d</string>
+    <string name="quick_check_hltb_none">Check HLTB matches</string>
+    <plurals name="stats_line">
+        <item quantity="one">%1$s game · %2$s played</item>
+        <item quantity="other">%1$s games · %2$s played</item>
+    </plurals>
+    <string name="stats_left_to_beat">%1$s · ≈ %2$s left to beat</string>
+    <string name="subtitle_last_played">Last played %1$s</string>
+    <string name="subtitle_left">%1$s · %2$s left</string>
+    <string name="subtitle_reviews">%1$s · %2$d%% positive</string>
+    <string name="subtitle_recent">%1$s · %2$s last 2 weeks</string>
+
+    <!-- Filters -->
+    <string name="filters_reset_all">Reset all</string>
+    <string name="filter_section_play_status">Play status</string>
+    <string name="filter_section_proton">ProtonDB &amp; Linux</string>
+    <string name="filter_section_proton_hint">How well it runs on Linux / Steam Deck via Proton</string>
+    <string name="filter_section_deck">Steam Deck</string>
+    <string name="filter_section_length">Time to beat</string>
+    <string name="filter_section_length_hint">HowLongToBeat main story</string>
+    <string name="filter_section_players">Players</string>
+    <string name="filter_full_controller">Full controller support</string>
+    <string name="filter_section_reviews">Steam reviews</string>
+    <string name="filter_reviews_any">Any</string>
+    <string name="filter_reviews_70" formatted="false">70%+ positive</string>
+    <string name="filter_reviews_80" formatted="false">80%+</string>
+    <string name="filter_reviews_90" formatted="false">90%+</string>
+    <string name="filter_section_tags">Tags</string>
+    <string name="filter_section_tags_hint">Games must have every selected tag</string>
+    <string name="filter_tag_with_count">%1$s · %2$d</string>
+    <string name="filter_search_tags">Search tags</string>
+    <string name="filter_show_fewer_tags">Show fewer tags</string>
+    <plurals name="filter_show_all_tags">
+        <item quantity="one">Show the %1$d tag</item>
+        <item quantity="other">Show all %1$d tags</item>
+    </plurals>
+    <plurals name="filter_show_results">
+        <item quantity="one">Show %1$d game</item>
+        <item quantity="other">Show %1$d games</item>
+    </plurals>
+    <string name="filter_hltb_needs_review">Match needs review</string>
+    <string name="filter_show_hidden">Show hidden games</string>
+
+    <!-- Your status -->
+    <string name="status_finished">Finished</string>
+    <string name="status_dropped">Dropped</string>
+    <string name="status_hidden">Hidden</string>
+    <string name="status_automatic">Automatic</string>
+    <string name="status_title">Your status</string>
+    <string name="status_explanation">Automatic counts a game as beaten once you\'ve played a typical main-story run. Finished and Dropped override that and take the game off your backlog; Hidden removes it from the library, stats and random picks.</string>
+    <string name="progress_marked_finished">Marked as finished.</string>
+    <string name="progress_marked_dropped">Marked as dropped, so it isn\'t counted in your backlog.</string>
+
+    <!-- Game page -->
+    <string name="playtime_title">Your playtime</string>
+    <string name="playtime_total">Total</string>
+    <string name="playtime_two_weeks">Last 2 weeks</string>
+    <string name="playtime_last_played">Last played</string>
+    <string name="playtime_deck">On Steam Deck</string>
+    <string name="playtime_linux">On Linux</string>
+    <string name="progress_past_main_story">You\'ve played longer than a typical main-story run (%1$s).</string>
+    <string name="progress_percent">%1$d%% of a typical %2$s run · about %3$s to go</string>
+    <string name="hltb_title">HowLongToBeat</string>
+    <string name="hltb_searching">Searching HowLongToBeat…</string>
+    <string name="hltb_not_fetched">Not fetched yet. Pull to refresh the library, or search manually.</string>
+    <string name="hltb_marked_missing">Marked as not on HowLongToBeat.</string>
+    <string name="hltb_no_match">No match found on HowLongToBeat.</string>
+    <string name="hltb_main">Main story</string>
+    <string name="hltb_main_extras">Main + extras</string>
+    <string name="hltb_completionist">Completionist</string>
+    <string name="hltb_polled">%1$s polled</string>
+    <string name="hltb_matched_manual">Matched by you: %1$s</string>
+    <string name="hltb_matched_possible">Possible match: %1$s</string>
+    <string name="hltb_matched">Matched: %1$s</string>
+    <string name="hltb_name_with_year">%1$s (%2$d)</string>
+    <string name="hltb_wrong_game">Wrong game?</string>
+    <string name="hltb_search">Search HLTB</string>
+    <string name="hltb_open">Open on HLTB</string>
+    <string name="hltb_uncertain_badge">Possible HowLongToBeat match; check it on the game page</string>
+    <string name="hltb_confirm_match">It\'s right</string>
+    <string name="proton_title">ProtonDB</string>
+    <string name="proton_loading">Loading ProtonDB rating…</string>
+    <string name="proton_not_fetched">Not fetched yet.</string>
+    <string name="proton_no_reports">No ProtonDB reports for this game yet.</string>
+    <string name="proton_reports">%1$s reports</string>
+    <string name="proton_reports_confidence">%1$s reports · %2$s confidence</string>
+    <string name="proton_trending">Trending: %1$s</string>
+    <string name="proton_best_reported">Best reported: %1$s</string>
+    <string name="proton_native_note">This game has a native Linux version.</string>
+    <string name="proton_open">Open on ProtonDB</string>
+    <string name="store_title">Steam</string>
+    <string name="store_deck">Steam Deck</string>
+    <string name="store_platforms">Platforms</string>
+    <string name="store_players">Players</string>
+    <string name="store_controller">Controller</string>
+    <string name="store_reviews">Reviews</string>
+    <string name="store_publisher">Publisher</string>
+    <string name="store_reviews_value">%1$s (%2$d%% of %3$s)</string>
+    <string name="store_review_pill">%1$s · %2$d%%</string>
+    <string name="controller_full">Full support</string>
+    <string name="controller_partial">Partial support</string>
+    <string name="platform_windows">Windows</string>
+    <string name="platform_mac">macOS</string>
+    <string name="platform_linux">Linux</string>
+    <string name="player_category_single">Single-player</string>
+    <string name="player_category_multiplayer">Multiplayer</string>
+    <string name="player_category_coop">Co-op</string>
+    <string name="player_category_online_coop">Online co-op</string>
+    <string name="player_category_lan_coop">LAN co-op</string>
+    <string name="player_category_split_coop">Split-screen co-op</string>
+    <string name="player_category_shared_screen">Shared/split screen</string>
+    <string name="player_category_pvp">PvP</string>
+    <string name="player_category_online_pvp">Online PvP</string>
+    <string name="player_category_lan_pvp">LAN PvP</string>
+    <string name="player_category_split_pvp">Split-screen PvP</string>
+    <string name="player_category_mmo">MMO</string>
+    <string name="player_category_cross_platform">Cross-platform multiplayer</string>
+    <string name="link_steam_store">Steam store</string>
+    <string name="link_steamdb">SteamDB</string>
+
+    <!-- HLTB match dialog -->
+    <string name="match_title">Match on HowLongToBeat</string>
+    <string name="match_search_label">Search HowLongToBeat</string>
+    <string name="match_no_results">No results. Try a shorter or different name.</string>
+    <string name="match_not_on_hltb">Not on HLTB</string>
+    <string name="match_auto">Auto-match</string>
+    <string name="match_time_main">Main %1$s</string>
+    <string name="match_time_extras">+Extras %1$s</string>
+    <string name="match_time_completionist">100%% %1$s</string>
+    <string name="match_no_times">No times yet</string>
+    <string name="match_search_failed">Search failed: %1$s</string>
+
+    <!-- Settings -->
+    <string name="settings_account">Steam account</string>
+    <string name="settings_steam_user">Steam user</string>
+    <string name="settings_view_profile">View profile</string>
+    <string name="settings_sign_out">Sign out</string>
+    <string name="settings_api_key">Steam Web API key</string>
+    <string name="settings_data_sources">Data sources</string>
+    <string name="settings_protondb">ProtonDB ratings</string>
+    <string name="settings_protondb_hint">Fetch Linux/Proton compatibility for every game.</string>
+    <string name="settings_hltb">HowLongToBeat times</string>
+    <string name="settings_hltb_hint">Look up every game on HowLongToBeat. Big libraries take a few minutes the first time; results are cached for a month.</string>
+    <string name="settings_free_games">Include free games</string>
+    <string name="settings_free_games_hint">Show free-to-play games you\'ve launched.</string>
+    <string name="settings_sync">Sync</string>
+    <string name="settings_sync_running">%1$s…</string>
+    <string name="settings_sync_running_count">%1$s… %2$d/%3$d</string>
+    <string name="settings_last_synced">Library last synced %1$s</string>
+    <string name="settings_not_synced">Not synced yet</string>
+    <string name="settings_refresh_everything">Refresh everything</string>
+    <string name="settings_clear_cache">Clear cache</string>
+    <string name="settings_sync_hint">Refresh re-downloads ratings and times even if they\'re cached. Your hand-picked HowLongToBeat matches and game statuses are kept.</string>
+    <string name="settings_refreshing">Refreshing your library and all ratings in the background.</string>
+    <string name="settings_cleared">Cleared. Ratings and times are being fetched again.</string>
+    <string name="settings_about">About</string>
+    <string name="settings_about_text">SteamShelf %1$s. Library data from the Steam Web API, compatibility ratings from ProtonDB and completion times from HowLongToBeat. Not affiliated with Valve, ProtonDB or HowLongToBeat.</string>
+    <string name="settings_link_protondb">ProtonDB</string>
+    <string name="settings_link_hltb">HowLongToBeat</string>
+    <string name="settings_new_key_title">New API key</string>
+    <string name="settings_open_key_page">Open the Steam key page</string>
+    <string name="settings_sign_out_title">Sign out?</string>
+    <string name="settings_sign_out_message">This removes your API key and all cached library data from this device.</string>
+
+    <!-- Login -->
+    <string name="login_tagline">Your Steam library with ProtonDB ratings, HowLongToBeat times and filters that help you pick what to play next.</string>
+    <string name="login_step">STEP %1$d</string>
+    <string name="login_step_account">Your Steam account</string>
+    <string name="login_signed_in_via_steam">Signed in through Steam</string>
+    <string name="login_sign_in_with_steam">Sign in through Steam</string>
+    <string name="login_or_enter_it">or enter it</string>
+    <string name="login_steam_id_label">SteamID64, profile URL or custom URL</string>
+    <string name="login_steam_id_placeholder">steamcommunity.com/id/yourname</string>
+    <string name="login_step_key">Steam Web API key</string>
+    <string name="login_key_explanation">Steam only shares your full library and playtime through its Web API, which needs a free personal key. On the key page, enter any domain name (for example \"localhost\") and copy the key.</string>
+    <string name="login_get_key">Get your API key</string>
+    <string name="login_key_label">API key</string>
+    <string name="login_hide_key">Hide key</string>
+    <string name="login_show_key">Show key</string>
+    <string name="login_connect">Connect</string>
+    <string name="login_key_privacy">Your key stays on this device and is only sent to api.steampowered.com.</string>
+    <string name="login_error_no_id">Sign in through Steam, or enter your SteamID64 or profile URL.</string>
 </resources>

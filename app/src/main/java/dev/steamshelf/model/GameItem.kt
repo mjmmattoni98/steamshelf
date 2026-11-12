@@ -13,6 +13,8 @@ data class GameItem(
     val store: StoreInfo?,
     val proton: ProtonInfo?,
     val hltb: HltbInfo?,
+    /** The user's own status; null means automatic (derived from playtime). */
+    val status: PlayStatus? = null,
 ) {
     val appId: Int get() = game.appId
     val name: String get() = game.name
@@ -25,10 +27,29 @@ data class GameItem(
         listOf(h.mainSeconds, h.plusSeconds, h.allStylesSeconds).firstOrNull { it > 0 }?.div(3600.0)
     }
 
-    val remainingHours: Double? = beatHours?.let { max(0.0, it - playtimeHours) }
+    val hidden: Boolean get() = status == PlayStatus.HIDDEN
+    val dropped: Boolean get() = status == PlayStatus.DROPPED
 
-    /** Share of a typical main-story run already played, capped at 1. */
-    val progress: Float? = beatHours?.takeIf { it > 0 }?.let { (playtimeHours / it).coerceIn(0.0, 1.0).toFloat() }
+    /** Marked finished by the user, or (with no verdict of theirs) played at least a typical main-story run. */
+    val beaten: Boolean = when (status) {
+        PlayStatus.FINISHED -> true
+        PlayStatus.DROPPED -> false
+        else -> beatHours != null && playtimeHours >= beatHours
+    }
+
+    /** Hours left on the backlog: none once finished, and not counted at all for dropped games. */
+    val remainingHours: Double? = when (status) {
+        PlayStatus.FINISHED -> 0.0
+        PlayStatus.DROPPED -> null
+        else -> beatHours?.let { max(0.0, it - playtimeHours) }
+    }
+
+    /** Share of a typical main-story run already played, capped at 1; full once marked finished. */
+    val progress: Float? = if (status == PlayStatus.FINISHED) 1f
+    else beatHours?.takeIf { it > 0 }?.let { (playtimeHours / it).coerceIn(0.0, 1.0).toFloat() }
+
+    /** The HLTB match is automatic and only a fuzzy fit. */
+    val hltbNeedsReview: Boolean get() = hltb?.needsReview == true
 
     val deck: DeckCompat = DeckCompat.of(store?.deckCompat)
     val linuxNative: Boolean = store?.linux == true

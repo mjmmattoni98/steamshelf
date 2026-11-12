@@ -40,13 +40,15 @@ data class StoreInfo(
     val headerImage: String? = null,
     val capsuleImage: String? = null,
     val heroImage: String? = null,
+    /** Steam language code the text fields were fetched in; null for caches written before this field existed (English). */
+    val language: String? = null,
 )
 
-enum class DeckCompat(val code: Int, val label: String) {
-    UNKNOWN(0, "Unknown"),
-    UNSUPPORTED(1, "Unsupported"),
-    PLAYABLE(2, "Playable"),
-    VERIFIED(3, "Verified");
+enum class DeckCompat(val code: Int) {
+    UNKNOWN(0),
+    UNSUPPORTED(1),
+    PLAYABLE(2),
+    VERIFIED(3);
 
     companion object {
         fun of(code: Int?): DeckCompat = entries.firstOrNull { it.code == code } ?: UNKNOWN
@@ -54,13 +56,13 @@ enum class DeckCompat(val code: Int, val label: String) {
 }
 
 @Serializable
-enum class ProtonTier(val label: String, val score: Int) {
-    PLATINUM("Platinum", 5),
-    GOLD("Gold", 4),
-    SILVER("Silver", 3),
-    BRONZE("Bronze", 2),
-    BORKED("Borked", 1),
-    PENDING("Pending", 0);
+enum class ProtonTier(val score: Int) {
+    PLATINUM(5),
+    GOLD(4),
+    SILVER(3),
+    BRONZE(2),
+    BORKED(1),
+    PENDING(0);
 
     companion object {
         fun parse(raw: String?): ProtonTier? = entries.firstOrNull { it.name.equals(raw, ignoreCase = true) }
@@ -96,12 +98,36 @@ data class HltbInfo(
     val completionistCount: Int = 0,
     val reviewScore: Int = 0,
     val releaseYear: Int = 0,
-    /** 0..1 name similarity of the automatic match; 1 for manual picks. */
+    /** 0..1 name similarity of the automatic match; 1 for picks from the search dialog. */
     val similarity: Double = 0.0,
-    /** True when the user picked (or rejected) the match by hand; never overwritten automatically. */
+    /** True when the user picked, confirmed or rejected the match by hand; never overwritten automatically. */
     val manual: Boolean = false,
 ) {
     val found: Boolean get() = hltbId != null
+
+    /** An automatic match whose name is only a fuzzy fit, so the user should check it. */
+    val needsReview: Boolean get() = found && !manual && similarity < CONFIDENT_SIMILARITY
+
+    companion object {
+        /** Automatic matches below this similarity are shown as "possible match". */
+        const val CONFIDENT_SIMILARITY = 0.85
+    }
+}
+
+/**
+ * The user's own verdict on a game, overriding the status derived from playtime. No entry means automatic.
+ * Kept through "Clear cache" and "Refresh everything", like hand-picked HLTB matches.
+ */
+@Serializable
+enum class PlayStatus {
+    /** Counts as beaten whatever the playtime. */
+    FINISHED,
+
+    /** Given up on: not in progress and not part of the backlog. */
+    DROPPED,
+
+    /** Not a game the user wants to see (soundtracks, tools, …). */
+    HIDDEN,
 }
 
 data class Account(
@@ -112,19 +138,30 @@ data class Account(
     val profileUrl: String?,
 )
 
-enum class SyncPhase(val label: String) {
-    LIBRARY("Loading your library"),
-    STORE("Fetching store details"),
-    PROTONDB("Fetching ProtonDB ratings"),
-    HLTB("Fetching HowLongToBeat times"),
+enum class SyncPhase { LIBRARY, STORE, PROTONDB, HLTB }
+
+/** What went wrong in a sync; the UI turns it into a message. */
+sealed interface SyncProblem {
+    /** Steam couldn't be reached or refused the request, so the cached library was used. */
+    data class LibraryNotRefreshed(val cause: Throwable) : SyncProblem
+
+    data object StoreIncomplete : SyncProblem
+
+    data class ProtonIncomplete(val failedGames: Int) : SyncProblem
+
+    /** HLTB failed too many times in a row; the phase stopped early. */
+    data object HltbUnavailable : SyncProblem
+
+    data class Failed(val cause: Throwable) : SyncProblem
 }
 
 data class SyncStatus(
     val running: Boolean = false,
+    /** Null while a requested sync hasn't started yet. */
     val phase: SyncPhase? = null,
     val done: Int = 0,
     val total: Int = 0,
-    val error: String? = null,
+    val error: SyncProblem? = null,
     /** Bumped on every new error so the UI can show it once. */
     val errorId: Long = 0,
 )
