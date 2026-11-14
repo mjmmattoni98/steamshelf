@@ -17,3 +17,6 @@ build/
 *.keystore
 *.p12
 keystore.properties
+
+# Local deployment settings for docker compose
+.env

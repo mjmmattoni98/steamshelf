@@ -82,8 +82,9 @@ docker compose up -d --build     # builds the server image on the Pi (a few minu
 ```
 
 The script prints the address, e.g. `https://raspberrypi.your-tailnet.ts.net`. It uses port 443 when
-`tailscale serve` isn't already using it for something else on the Pi, and 8443 otherwise. Open it on any
-device in your tailnet, **Sign in through Steam**, then paste your Steam Web API key (as for the app).
+`tailscale serve` isn't already using it for something else on the Pi, and the first free port from 8443 up
+otherwise. Open it on any device in your tailnet, **Sign in through Steam**, then paste your Steam Web API key
+(as for the app).
 HTTPS through `tailscale serve` needs **MagicDNS** and **HTTPS certificates** turned on in the Tailscale
 admin console (DNS page); `tailscale serve` prints a link to do that if they're off.
 
@@ -92,7 +93,7 @@ admin console (DNS page); `tailscale serve` prints a link to do that if they're 
 - **Logs:** `docker compose logs -f`.
 - **Port 8080 taken on the Pi?** Put `STEAMSHELF_HOST_PORT=8090` in a `.env` file next to
   `docker-compose.yml` and run `docker compose up -d`. If you had already published SteamShelf, remove the old
-  entry first (`sudo tailscale serve --https=443 off`, or 8443) and run `./deploy/tailscale-serve.sh` again.
+  entry first (`sudo tailscale serve --https=<port> off`) and run `./deploy/tailscale-serve.sh` again.
 - **Exposure:** the container only listens on `127.0.0.1`, so only `tailscale serve` (and so only your
   tailnet) can reach it. The API key stays in the volume and is only sent to `api.steampowered.com`.
   Session cookies are signed, HTTPS-only and last 90 days; signing out in Settings ends every session.

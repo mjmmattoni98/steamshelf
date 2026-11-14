@@ -14,3 +14,4 @@ keystore.properties
 *.p12
 *.apk
 *.aab
+.env

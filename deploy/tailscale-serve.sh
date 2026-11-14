@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Publishes SteamShelf on your tailnet with HTTPS, using `tailscale serve` on this machine (the Pi).
 #
-# It uses https://<machine>.<tailnet>.ts.net/ (port 443) when nothing else is served there, and port 8443
-# otherwise, so it won't replace another service you already publish. The setting survives reboots.
+# It uses https://<machine>.<tailnet>.ts.net/ (port 443) when nothing else is served there, and the first free port
+# from 8443 up otherwise, so it won't replace another service you already publish. The setting survives reboots.
 # Requires MagicDNS and HTTPS certificates to be turned on in the Tailscale admin console (DNS page);
 # if they aren't, tailscale prints a link to turn them on.
 #
@@ -35,16 +35,19 @@ if grep -q "${target}" <<<"$status"; then
   exit 0
 fi
 
-https_port=443
-if served_on 443; then
-  https_port=8443
-  if served_on 8443; then
-    echo "Ports 443 and 8443 are both in use by tailscale serve. Pick another one, e.g.:" >&2
-    echo "  sudo tailscale serve --bg --https=10443 ${target}" >&2
-    exit 1
+https_port=""
+for port in 443 $(seq 8443 8463); do
+  if ! served_on "${port}"; then
+    https_port="${port}"
+    break
   fi
-  echo "Port 443 already serves something else; using 8443 for SteamShelf."
+done
+if [ -z "${https_port}" ]; then
+  echo "Ports 443 and 8443-8463 are all in use by tailscale serve. Pick another one, e.g.:" >&2
+  echo "  sudo tailscale serve --bg --https=10443 ${target}" >&2
+  exit 1
 fi
+[ "${https_port}" = 443 ] || echo "Port 443 already serves something else; using ${https_port} for SteamShelf."
 
 sudo tailscale serve --bg --https="${https_port}" "${target}"
 
